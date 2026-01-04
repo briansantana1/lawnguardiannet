@@ -1,9 +1,21 @@
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { ArrowLeft } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { BottomNavigation } from "@/components/BottomNavigation";
 
 export function TermsOfUse() {
+  const navigate = useNavigate();
+  
   return (
-    <div className="min-h-screen bg-background">
-      <div className="container mx-auto px-4 py-12 max-w-4xl">
+    <div className="min-h-screen bg-background pb-20">
+      <div className="container mx-auto px-4 py-8 max-w-4xl">
+        <button
+          onClick={() => navigate(-1)}
+          className="flex items-center gap-2 text-primary text-sm mb-4 hover:underline"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          Back
+        </button>
+        
         <h1 className="font-heading text-3xl md:text-4xl font-bold text-foreground mb-2">
           Terms of Use
         </h1>
@@ -188,6 +200,7 @@ export function TermsOfUse() {
           </section>
         </div>
       </div>
+      <BottomNavigation />
     </div>
   );
 }
