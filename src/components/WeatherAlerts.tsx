@@ -520,11 +520,14 @@ export function WeatherAlerts() {
                   <p className="text-sm font-semibold text-foreground mb-3">
                     Soil Temperature Trend
                   </p>
-                  <div className="flex items-end justify-between h-24 gap-2">
+                <div className="flex items-end justify-between h-28 gap-2">
                     {displaySoilTemps.map((temp, i) => {
                       const dayLabels = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
                       const today = new Date();
-                      const dayIndex = new Date(today.getTime() - (6 - i) * 24 * 60 * 60 * 1000).getDay();
+                      const dateForDay = new Date(today.getTime() - (6 - i) * 24 * 60 * 60 * 1000);
+                      const dayIndex = dateForDay.getDay();
+                      const month = dateForDay.getMonth() + 1;
+                      const day = dateForDay.getDate();
                       return (
                         <div key={i} className="flex-1 flex flex-col items-center">
                           <span className="text-xs text-muted-foreground mb-1 font-medium">
@@ -537,6 +540,9 @@ export function WeatherAlerts() {
                           />
                           <span className="text-[10px] text-muted-foreground mt-1 font-medium">
                             {dayLabels[dayIndex]}
+                          </span>
+                          <span className="text-[9px] text-muted-foreground font-medium">
+                            {month}/{day}
                           </span>
                         </div>
                       );

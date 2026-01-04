@@ -5,6 +5,30 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { TreatmentModal, type LawnIssue } from "./TreatmentModal";
 
+// Default images by type for visual comparison
+const typeImages: Record<string, string[]> = {
+  disease: [
+    "https://images.unsplash.com/photo-1558635924-b60e7f0ad78d?w=400&h=300&fit=crop",
+    "https://images.unsplash.com/photo-1416879595882-3373a0480b5b?w=400&h=300&fit=crop",
+    "https://images.unsplash.com/photo-1501004318641-b39e6451bec6?w=400&h=300&fit=crop",
+  ],
+  insect: [
+    "https://images.unsplash.com/photo-1590005024862-6b67679a29fb?w=400&h=300&fit=crop",
+    "https://images.unsplash.com/photo-1598511757337-fe2cafc31ba0?w=400&h=300&fit=crop",
+    "https://images.unsplash.com/photo-1563722142-5a287ad06106?w=400&h=300&fit=crop",
+  ],
+  weed: [
+    "https://images.unsplash.com/photo-1530836369250-ef72a3f5cda8?w=400&h=300&fit=crop",
+    "https://images.unsplash.com/photo-1591857177580-dc82b9ac4e1e?w=400&h=300&fit=crop",
+    "https://images.unsplash.com/photo-1462275646964-a0e3571f4f7f?w=400&h=300&fit=crop",
+  ],
+};
+
+const getIssueImage = (type: string, id: number): string => {
+  const images = typeImages[type] || typeImages.disease;
+  return images[id % images.length];
+};
+
 // Geographic regions with common issues
 const regions = [
   { value: "all", label: "All Regions" },
@@ -30,6 +54,7 @@ const issues = [
     description: "A fungal disease that thrives in hot, humid conditions. Common in cool-season grasses.",
     activeIngredients: ["Azoxystrobin (0.38 oz/1,000 sq ft)", "Propiconazole (1-2 oz/1,000 sq ft)"],
     regions: ["southeast", "midwest", "northeast", "texas"],
+    image: "https://images.unsplash.com/photo-1558635924-b60e7f0ad78d?w=400&h=300&fit=crop",
   },
   {
     id: 2,
@@ -41,6 +66,7 @@ const issues = [
     description: "Fungal disease causing gray-brown spots with dark borders, common in St. Augustine and perennial ryegrass.",
     activeIngredients: ["Azoxystrobin (0.38 oz/1,000 sq ft)", "Thiophanate-methyl (4 oz/1,000 sq ft)"],
     regions: ["southeast", "texas", "florida", "california"],
+    image: "https://images.unsplash.com/photo-1416879595882-3373a0480b5b?w=400&h=300&fit=crop",
   },
   {
     id: 3,
@@ -52,6 +78,7 @@ const issues = [
     description: "Creates silver-dollar sized dead spots in lawns. Thrives in low nitrogen conditions and excess moisture.",
     activeIngredients: ["Propiconazole (1-2 oz/1,000 sq ft)", "Boscalid (0.28 oz/1,000 sq ft)"],
     regions: ["northeast", "midwest", "southeast", "northwest"],
+    image: "https://images.unsplash.com/photo-1501004318641-b39e6451bec6?w=400&h=300&fit=crop",
   },
   {
     id: 4,
@@ -728,28 +755,33 @@ export function IssueDatabase() {
             filteredIssues.map((issue) => {
               const TypeIcon = typeIcons[issue.type as keyof typeof typeIcons];
               return (
-                <Card key={issue.id} variant="issue" className="group cursor-pointer">
-                  <CardHeader className="pb-3">
-                    <div className="flex items-start justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="w-12 h-12 rounded-xl bg-lawn-100 flex items-center justify-center group-hover:scale-110 transition-transform">
-                          <TypeIcon className="w-6 h-6 text-primary" />
-                        </div>
-                        <div>
-                          <CardTitle className="text-lg">{issue.name}</CardTitle>
-                          <span className="text-xs text-muted-foreground capitalize">
-                            {issue.type}
-                          </span>
-                        </div>
+                <Card key={issue.id} variant="issue" className="group cursor-pointer overflow-hidden">
+                  {/* Issue Image */}
+                  <div className="relative h-40 overflow-hidden">
+                    <img
+                      src={getIssueImage(issue.type, issue.id)}
+                      alt={`${issue.name} - ${issue.type}`}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-background/80 to-transparent" />
+                    <span
+                      className={`absolute top-3 right-3 px-3 py-1 rounded-full text-xs font-medium border backdrop-blur-sm ${
+                        severityColors[issue.severity as keyof typeof severityColors]
+                      }`}
+                    >
+                      {issue.severity}
+                    </span>
+                    <div className="absolute bottom-3 left-3 flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-lg bg-card/90 backdrop-blur-sm flex items-center justify-center">
+                        <TypeIcon className="w-4 h-4 text-primary" />
                       </div>
-                      <span
-                        className={`px-3 py-1 rounded-full text-xs font-medium border ${
-                          severityColors[issue.severity as keyof typeof severityColors]
-                        }`}
-                      >
-                        {issue.severity}
+                      <span className="text-xs text-foreground font-medium capitalize bg-card/90 backdrop-blur-sm px-2 py-1 rounded">
+                        {issue.type}
                       </span>
                     </div>
+                  </div>
+                  <CardHeader className="pb-3 pt-4">
+                    <CardTitle className="text-lg">{issue.name}</CardTitle>
                   </CardHeader>
                   <CardContent>
                     <p className="text-sm text-muted-foreground mb-4">
