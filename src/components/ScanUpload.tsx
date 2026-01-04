@@ -2,11 +2,27 @@ import { useState, useRef } from "react";
 import { Camera, Upload, X, Loader2, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+import { LawnAnalysisResult } from "@/types/lawn-analysis";
+import { AnalysisResults } from "@/components/AnalysisResults";
+import { useAuth } from "@/hooks/useAuth";
 
 export function ScanUpload() {
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [analysisResult, setAnalysisResult] = useState<LawnAnalysisResult | null>(null);
+  const [grassType, setGrassType] = useState("cool-season");
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { user } = useAuth();
+
+  const getCurrentSeason = () => {
+    const month = new Date().getMonth();
+    if (month >= 2 && month <= 4) return "spring";
+    if (month >= 5 && month <= 7) return "summer";
+    if (month >= 8 && month <= 10) return "fall";
+    return "winter";
+  };
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -14,29 +30,98 @@ export function ScanUpload() {
       const reader = new FileReader();
       reader.onloadend = () => {
         setSelectedImage(reader.result as string);
+        setAnalysisResult(null);
       };
       reader.readAsDataURL(file);
     }
   };
 
-  const handleAnalyze = () => {
+  const handleAnalyze = async () => {
+    if (!selectedImage) return;
+
     setIsAnalyzing(true);
-    // Simulate analysis - this would connect to AI backend
-    setTimeout(() => {
+    try {
+      const { data, error } = await supabase.functions.invoke('analyze-lawn', {
+        body: {
+          imageBase64: selectedImage,
+          grassType,
+          season: getCurrentSeason(),
+          location: "United States",
+        },
+      });
+
+      if (error) {
+        console.error('Analysis error:', error);
+        toast.error('Failed to analyze image. Please try again.');
+        return;
+      }
+
+      if (data.error) {
+        console.error('API error:', data.error);
+        toast.error(data.error);
+        return;
+      }
+
+      setAnalysisResult(data);
+      toast.success('Analysis complete!');
+    } catch (error) {
+      console.error('Error:', error);
+      toast.error('An unexpected error occurred. Please try again.');
+    } finally {
       setIsAnalyzing(false);
-      // Would navigate to results or show diagnosis
-    }, 3000);
+    }
+  };
+
+  const handleSavePlan = async () => {
+    if (!user) {
+      toast.error('Please sign in to save your treatment plan.');
+      return;
+    }
+
+    if (!analysisResult) return;
+
+    try {
+      const { error } = await supabase.from('saved_treatment_plans').insert([{
+        user_id: user.id,
+        image_url: selectedImage,
+        diagnosis: JSON.parse(JSON.stringify(analysisResult.diagnosis)),
+        treatment_plan: JSON.parse(JSON.stringify(analysisResult.treatment_plan)),
+        forecast: JSON.parse(JSON.stringify(analysisResult.forecast)),
+        grass_type: grassType,
+        season: getCurrentSeason(),
+      }]);
+
+      if (error) throw error;
+
+      toast.success('Treatment plan saved to your account!');
+    } catch (error) {
+      console.error('Save error:', error);
+      toast.error('Failed to save treatment plan.');
+    }
   };
 
   const clearImage = () => {
     setSelectedImage(null);
+    setAnalysisResult(null);
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
   };
 
+  if (analysisResult) {
+    return (
+      <AnalysisResults
+        result={analysisResult}
+        imageUrl={selectedImage}
+        onSave={handleSavePlan}
+        onNewScan={clearImage}
+        isLoggedIn={!!user}
+      />
+    );
+  }
+
   return (
-    <section className="py-20 bg-lawn-50">
+    <section id="scan" className="py-20 bg-lawn-50">
       <div className="container mx-auto px-4">
         <div className="max-w-2xl mx-auto">
           {/* Section Header */}
@@ -48,6 +133,22 @@ export function ScanUpload() {
               Upload or take a photo of the affected area for instant AI
               diagnosis
             </p>
+          </div>
+
+          {/* Grass Type Selector */}
+          <div className="mb-6">
+            <label className="block text-sm font-medium text-foreground mb-2">
+              Your Grass Type
+            </label>
+            <select
+              value={grassType}
+              onChange={(e) => setGrassType(e.target.value)}
+              className="w-full px-4 py-3 rounded-xl border border-lawn-200 bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+            >
+              <option value="cool-season">Cool-Season (Kentucky Bluegrass, Fescue, Ryegrass)</option>
+              <option value="warm-season">Warm-Season (Bermuda, Zoysia, St. Augustine)</option>
+              <option value="transition-zone">Transition Zone Mix</option>
+            </select>
           </div>
 
           {/* Upload Card */}
@@ -129,7 +230,7 @@ export function ScanUpload() {
                       {isAnalyzing ? (
                         <>
                           <Loader2 className="w-5 h-5 animate-spin" />
-                          Analyzing...
+                          Analyzing your lawn...
                         </>
                       ) : (
                         <>
