@@ -106,6 +106,7 @@ export function ScanUpload() {
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
+    // Note: grassType is intentionally NOT reset - it persists between scans
   };
 
   if (analysisResult) {
