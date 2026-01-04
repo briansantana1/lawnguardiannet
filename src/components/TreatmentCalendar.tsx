@@ -6,11 +6,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { CalendarDays, Plus, Droplets, Leaf, Edit2, Trash2, Bell, BellRing, Undo2 } from "lucide-react";
+import { CalendarDays, Plus, Droplets, Leaf, Edit2, Trash2, Bell, BellRing } from "lucide-react";
 import { format, isSameDay } from "date-fns";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { NotificationScheduler } from "@/components/NotificationScheduler";
 
 interface JournalEntry {
   id: string;
@@ -35,7 +36,7 @@ export function TreatmentCalendar() {
   const [editingEntry, setEditingEntry] = useState<JournalEntry | null>(null);
   const [deleteConfirmEntry, setDeleteConfirmEntry] = useState<JournalEntry | null>(null);
   const [undoState, setUndoState] = useState<UndoState | null>(null);
-  const [schedulingNotification, setSchedulingNotification] = useState<string | null>(null);
+  const [notificationModalEntry, setNotificationModalEntry] = useState<JournalEntry | null>(null);
   const [newEntry, setNewEntry] = useState({
     product: "",
     notes: "",
@@ -158,7 +159,7 @@ export function TreatmentCalendar() {
     setUndoState(null);
   }, [undoState]);
 
-  const handleScheduleNotification = async (entry: JournalEntry) => {
+  const handleScheduleNotification = (entry: JournalEntry) => {
     if (!user) {
       toast.error("Please sign in to enable notifications");
       return;
@@ -169,69 +170,16 @@ export function TreatmentCalendar() {
       return;
     }
 
-    setSchedulingNotification(entry.id);
+    setNotificationModalEntry(entry);
+  };
 
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        toast.error("Please sign in to enable notifications");
-        return;
-      }
-
-      // Schedule a notification for the day before the treatment
-      const reminderDate = new Date(entry.nextApplicationDate);
-      reminderDate.setDate(reminderDate.getDate() - 1);
-      reminderDate.setHours(9, 0, 0, 0);
-
-      const { error } = await supabase.from("notification_schedules").insert({
-        user_id: user.id,
-        title: `🌿 Treatment Reminder: ${entry.product}`,
-        message: `Tomorrow is your scheduled treatment day for ${entry.product}. ${entry.notes ? `Notes: ${entry.notes}` : ""}`,
-        category: "treatment_reminder",
-        priority: "medium",
-        scheduled_for: reminderDate.toISOString(),
-        weather_context: {
-          product: entry.product,
-          applicationDate: entry.nextApplicationDate.toISOString(),
-          notes: entry.notes,
-        },
-      });
-
-      if (error) throw error;
-
-      // Also schedule a notification for the day of
-      const dayOfDate = new Date(entry.nextApplicationDate);
-      dayOfDate.setHours(8, 0, 0, 0);
-
-      await supabase.from("notification_schedules").insert({
-        user_id: user.id,
-        title: `🌿 Today: Apply ${entry.product}`,
-        message: `Today is your scheduled treatment day! Apply ${entry.product}. ${entry.notes ? `Notes: ${entry.notes}` : ""}`,
-        category: "treatment_reminder",
-        priority: "high",
-        scheduled_for: dayOfDate.toISOString(),
-        weather_context: {
-          product: entry.product,
-          applicationDate: entry.nextApplicationDate.toISOString(),
-          notes: entry.notes,
-        },
-      });
-
-      // Update entry to show notification is enabled
+  const handleNotificationSuccess = () => {
+    if (notificationModalEntry) {
       setEntries((prev) =>
         prev.map((e) =>
-          e.id === entry.id ? { ...e, notificationEnabled: true } : e
+          e.id === notificationModalEntry.id ? { ...e, notificationEnabled: true } : e
         )
       );
-
-      toast.success("Smart notification scheduled!", {
-        description: `You'll be reminded on ${format(reminderDate, "MMM d")} and ${format(dayOfDate, "MMM d")}`,
-      });
-    } catch (error) {
-      console.error("Error scheduling notification:", error);
-      toast.error("Failed to schedule notification");
-    } finally {
-      setSchedulingNotification(null);
     }
   };
 
@@ -376,7 +324,7 @@ export function TreatmentCalendar() {
                             size="sm"
                             className="h-7 w-7 p-0"
                             onClick={() => handleScheduleNotification(entry)}
-                            disabled={schedulingNotification === entry.id || entry.notificationEnabled}
+                            disabled={entry.notificationEnabled}
                             title={entry.notificationEnabled ? "Notification enabled" : "Schedule notification"}
                           >
                             {entry.notificationEnabled ? (
@@ -558,7 +506,7 @@ export function TreatmentCalendar() {
                               variant="ghost"
                               size="sm"
                               onClick={() => handleScheduleNotification(entry)}
-                              disabled={schedulingNotification === entry.id || entry.notificationEnabled}
+                              disabled={entry.notificationEnabled}
                               title={entry.notificationEnabled ? "Notification enabled" : "Schedule notification"}
                             >
                               {entry.notificationEnabled ? (
@@ -677,6 +625,19 @@ export function TreatmentCalendar() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        {/* Notification Scheduler Modal */}
+        <NotificationScheduler
+          open={!!notificationModalEntry}
+          onOpenChange={(open) => !open && setNotificationModalEntry(null)}
+          treatment={notificationModalEntry ? {
+            id: notificationModalEntry.id,
+            product: notificationModalEntry.product,
+            applicationDate: notificationModalEntry.nextApplicationDate!,
+            notes: notificationModalEntry.notes,
+          } : null}
+          onSuccess={handleNotificationSuccess}
+        />
       </div>
     </section>
   );
