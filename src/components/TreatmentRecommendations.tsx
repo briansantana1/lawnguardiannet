@@ -41,38 +41,28 @@ export function TreatmentRecommendations() {
   const { toast } = useToast();
   const { user } = useAuth();
 
-  const handleFindProducts = () => {
-    // Open Google Maps search for lawn care products nearby
+  const [mapsUrl, setMapsUrl] = useState("https://www.google.com/maps/search/lawn+care+products+near+me");
+
+  // Get user location for maps URL
+  const updateMapsUrl = () => {
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
           const { latitude, longitude } = position.coords;
           const searchQuery = encodeURIComponent("lawn care products fungicide");
-          window.open(
-            `https://www.google.com/maps/search/${searchQuery}/@${latitude},${longitude},14z`,
-            "_blank"
-          );
+          setMapsUrl(`https://www.google.com/maps/search/${searchQuery}/@${latitude},${longitude},14z`);
         },
         () => {
-          // Fallback to general search if location denied
-          window.open(
-            "https://www.google.com/maps/search/lawn+care+products+near+me",
-            "_blank"
-          );
+          // Keep default URL if location denied
         }
       );
-    } else {
-      window.open(
-        "https://www.google.com/maps/search/lawn+care+products+near+me",
-        "_blank"
-      );
     }
-    
-    toast({
-      title: "Finding Products",
-      description: "Opening map to find lawn care products near you.",
-    });
   };
+
+  // Try to get location on mount
+  useState(() => {
+    updateMapsUrl();
+  });
 
   const handleSaveTreatmentPlan = async () => {
     if (!user) {
@@ -266,11 +256,13 @@ export function TreatmentRecommendations() {
                   variant="scan" 
                   size="lg" 
                   className="flex-1"
-                  onClick={handleFindProducts}
+                  asChild
                 >
-                  <MapPin className="w-4 h-4 mr-2" />
-                  Find Products Near Me
-                  <ExternalLink className="w-4 h-4 ml-2" />
+                  <a href={mapsUrl} target="_blank" rel="noopener noreferrer">
+                    <MapPin className="w-4 h-4 mr-2" />
+                    Find Products Near Me
+                    <ExternalLink className="w-4 h-4 ml-2" />
+                  </a>
                 </Button>
                 <Button 
                   variant="outline" 
