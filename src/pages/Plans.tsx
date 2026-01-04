@@ -33,7 +33,7 @@ const plans = [
       "1 treatment plan with prevention tips",
     ],
     buttonText: "Purchase",
-    buttonVariant: "outline" as const,
+    buttonVariant: "default" as const,
     popular: false,
   },
   {
@@ -50,7 +50,7 @@ const plans = [
       "Access to all features",
       "Cancel anytime",
     ],
-    buttonText: "Subscribe",
+    buttonText: "Purchase",
     buttonVariant: "default" as const,
     popular: true,
   },
@@ -68,7 +68,7 @@ const plans = [
       "Access to all features",
       "Best value - save 33%",
     ],
-    buttonText: "Subscribe",
+    buttonText: "Purchase",
     buttonVariant: "default" as const,
     popular: false,
   },
@@ -135,6 +135,15 @@ export function Plans() {
                   variant={plan.buttonVariant} 
                   className="w-full"
                   disabled={plan.name === "Free Plan"}
+                  onClick={() => {
+                    if (plan.name === "One-Time Option") {
+                      navigate("/purchase?plan=one-time");
+                    } else if (plan.name === "Monthly Plan") {
+                      navigate("/purchase?plan=monthly");
+                    } else if (plan.name === "Annual Plan") {
+                      navigate("/purchase?plan=annual");
+                    }
+                  }}
                 >
                   {plan.buttonText}
                 </Button>

@@ -12,6 +12,10 @@ import { Contact } from "./pages/Contact";
 import { Legal } from "./pages/Legal";
 import { Profile } from "./pages/Profile";
 import { Plans } from "./pages/Plans";
+import { SavedPlans } from "./pages/SavedPlans";
+import { CancelMembership } from "./pages/CancelMembership";
+import { RestoreMembership } from "./pages/RestoreMembership";
+import { Purchase } from "./pages/Purchase";
 
 const queryClient = new QueryClient();
 
@@ -30,6 +34,10 @@ const App = () => (
           <Route path="/legal" element={<Legal />} />
           <Route path="/profile" element={<Profile />} />
           <Route path="/plans" element={<Plans />} />
+          <Route path="/saved-plans" element={<SavedPlans />} />
+          <Route path="/cancel-membership" element={<CancelMembership />} />
+          <Route path="/restore-membership" element={<RestoreMembership />} />
+          <Route path="/purchase" element={<Purchase />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
