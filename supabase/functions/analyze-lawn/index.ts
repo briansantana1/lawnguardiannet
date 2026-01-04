@@ -24,7 +24,7 @@ serve(async (req) => {
       throw new Error('No image provided');
     }
 
-    console.log('Analyzing lawn image with Gemini Vision...');
+    console.log('Analyzing lawn image with GPT-5-mini...');
     console.log('Grass type:', grassType || 'Unknown');
     console.log('Season:', season || 'Unknown');
     console.log('Location:', location || 'Unknown');
@@ -120,7 +120,7 @@ Be specific with chemical recommendations including exact active ingredients, ap
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'google/gemini-2.5-flash',
+        model: 'openai/gpt-5-mini',
         messages: [
           { 
             role: 'system', 
