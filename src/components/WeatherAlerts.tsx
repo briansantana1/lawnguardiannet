@@ -207,6 +207,17 @@ export function WeatherAlerts() {
       return;
     }
 
+    // Verify we have a valid session
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      toast({
+        title: "Session Expired",
+        description: "Please sign in again to schedule notifications.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     if (!aiAnalysis) {
       toast({
         title: "No Analysis Available",
@@ -223,6 +234,16 @@ export function WeatherAlerts() {
       });
 
       if (error) {
+        console.error("Schedule notifications error details:", error);
+        // Check if it's an auth error
+        if (error.message?.includes("401") || error.message?.includes("Unauthorized") || error.message?.includes("non-2xx")) {
+          toast({
+            title: "Authentication Error",
+            description: "Please sign in again and try once more.",
+            variant: "destructive",
+          });
+          return;
+        }
         throw error;
       }
 
@@ -233,11 +254,11 @@ export function WeatherAlerts() {
 
       // Refresh the notifications list
       fetchScheduledNotifications();
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to schedule notifications:", error);
       toast({
         title: "Scheduling Failed",
-        description: "Could not schedule notifications. Please try again.",
+        description: error?.message || "Could not schedule notifications. Please try again.",
         variant: "destructive",
       });
     } finally {

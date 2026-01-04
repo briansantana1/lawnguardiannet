@@ -72,8 +72,8 @@ export function Navigation() {
                     {user.email}
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem asChild>
-                    <Link to="/saved-plans">My Saved Plans</Link>
+                  <DropdownMenuItem onSelect={() => window.location.href = '/saved-plans'}>
+                    My Saved Plans
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={signOut} className="text-red-600">
