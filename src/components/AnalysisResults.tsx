@@ -260,18 +260,6 @@ export function AnalysisResults({ result, imageUrl, onSave, onNewScan, isLoggedI
               <h2 className="font-heading text-2xl md:text-3xl font-bold text-foreground mb-2">
                 Analysis Complete
               </h2>
-              <div className="flex items-center gap-4 flex-wrap">
-                <Badge variant="secondary" className={`text-lg px-4 py-2 ${
-                  result.diagnosis.overall_health === 'poor' ? 'bg-red-100 text-red-700' :
-                  result.diagnosis.overall_health === 'fair' ? 'bg-amber-100 text-amber-700' :
-                  'bg-lawn-100 text-lawn-700'
-                }`}>
-                  Overall Health: {result.diagnosis.overall_health}
-                </Badge>
-                <span className="text-muted-foreground">
-                  Affected area: {result.diagnosis.affected_area_estimate}
-                </span>
-              </div>
               <div className="flex gap-3 mt-4">
                 {isLoggedIn ? (
                   <Button variant="hero" onClick={onSave}>
