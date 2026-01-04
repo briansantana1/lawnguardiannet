@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { Calendar } from "@/components/ui/calendar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -6,8 +6,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { CalendarDays, Plus, Droplets, Leaf, Edit2, Trash2, Bell, BellRing } from "lucide-react";
-import { format, isSameDay } from "date-fns";
+import { CalendarDays, Plus, Droplets, Leaf, Edit2, Trash2, Bell, BellRing, Loader2 } from "lucide-react";
+import { format, isSameDay, parseISO } from "date-fns";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -17,6 +17,12 @@ function parseDateInput(value: string): Date {
   // HTML date inputs return YYYY-MM-DD; parsing via new Date(value) treats it as UTC and can shift a day.
   const [y, m, d] = value.split("-").map(Number);
   return new Date(y, (m ?? 1) - 1, d ?? 1, 12, 0, 0, 0); // noon local to avoid TZ edge cases
+}
+
+function parseDateFromDB(dateStr: string): Date {
+  // Database returns YYYY-MM-DD, parse as local date at noon
+  const [y, m, d] = dateStr.split("-").map(Number);
+  return new Date(y, (m ?? 1) - 1, d ?? 1, 12, 0, 0, 0);
 }
 
 interface JournalEntry {
@@ -38,7 +44,9 @@ export function TreatmentCalendar() {
   const { user } = useAuth();
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
   const [entries, setEntries] = useState<JournalEntry[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
   const [isAddingEntry, setIsAddingEntry] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [editingEntry, setEditingEntry] = useState<JournalEntry | null>(null);
   const [deleteConfirmEntry, setDeleteConfirmEntry] = useState<JournalEntry | null>(null);
   const [undoState, setUndoState] = useState<UndoState | null>(null);
@@ -49,6 +57,45 @@ export function TreatmentCalendar() {
     nextApplicationDate: "",
   });
 
+  // Load entries from database
+  useEffect(() => {
+    if (!user) {
+      setEntries([]);
+      return;
+    }
+
+    const loadEntries = async () => {
+      setIsLoading(true);
+      try {
+        const { data, error } = await supabase
+          .from("treatment_calendar_entries")
+          .select("*")
+          .eq("user_id", user.id)
+          .order("date", { ascending: false });
+
+        if (error) throw error;
+
+        const loadedEntries: JournalEntry[] = (data || []).map((row) => ({
+          id: row.id,
+          date: parseDateFromDB(row.date),
+          product: row.product,
+          notes: row.notes || "",
+          nextApplicationDate: row.next_application_date ? parseDateFromDB(row.next_application_date) : undefined,
+          notificationEnabled: row.notification_enabled,
+        }));
+
+        setEntries(loadedEntries);
+      } catch (error) {
+        console.error("Failed to load entries:", error);
+        toast.error("Failed to load treatment entries");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadEntries();
+  }, [user]);
+
   const entriesForDate = selectedDate
     ? entries.filter((entry) => isSameDay(entry.date, selectedDate))
     : [];
@@ -58,31 +105,57 @@ export function TreatmentCalendar() {
     .sort((a, b) => (a.nextApplicationDate!.getTime() - b.nextApplicationDate!.getTime()))
     .slice(0, 5);
 
-  const handleAddEntry = () => {
+  const handleAddEntry = async () => {
     if (!selectedDate || !newEntry.product.trim()) {
       toast.error("Please select a date and enter a product name");
       return;
     }
 
-    const entry: JournalEntry = {
-      id: Date.now().toString(),
-      date: selectedDate,
-      product: newEntry.product.trim(),
-      notes: newEntry.notes.trim(),
-      nextApplicationDate: newEntry.nextApplicationDate
-        ? parseDateInput(newEntry.nextApplicationDate)
-        : undefined,
-      notificationEnabled: false,
-    };
+    if (!user) {
+      toast.error("Please sign in to save entries");
+      return;
+    }
 
-    setEntries([...entries, entry]);
-    setNewEntry({ product: "", notes: "", nextApplicationDate: "" });
-    setIsAddingEntry(false);
-    toast.success("Treatment entry added!");
+    setIsSaving(true);
+    try {
+      const { data, error } = await supabase
+        .from("treatment_calendar_entries")
+        .insert({
+          user_id: user.id,
+          date: format(selectedDate, "yyyy-MM-dd"),
+          product: newEntry.product.trim(),
+          notes: newEntry.notes.trim() || null,
+          next_application_date: newEntry.nextApplicationDate || null,
+          notification_enabled: false,
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      const entry: JournalEntry = {
+        id: data.id,
+        date: parseDateFromDB(data.date),
+        product: data.product,
+        notes: data.notes || "",
+        nextApplicationDate: data.next_application_date ? parseDateFromDB(data.next_application_date) : undefined,
+        notificationEnabled: data.notification_enabled,
+      };
+
+      setEntries([...entries, entry]);
+      setNewEntry({ product: "", notes: "", nextApplicationDate: "" });
+      setIsAddingEntry(false);
+      toast.success("Treatment entry added!");
+    } catch (error) {
+      console.error("Failed to add entry:", error);
+      toast.error("Failed to save entry");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
-  const handleUpdateEntry = () => {
-    if (!editingEntry) return;
+  const handleUpdateEntry = async () => {
+    if (!editingEntry || !user) return;
 
     const previousEntry = entries.find((e) => e.id === editingEntry.id);
     const updatedEntry = {
@@ -94,76 +167,148 @@ export function TreatmentCalendar() {
         : editingEntry.nextApplicationDate,
     };
 
-    setEntries(
-      entries.map((e) => (e.id === editingEntry.id ? updatedEntry : e))
-    );
+    setIsSaving(true);
+    try {
+      const { error } = await supabase
+        .from("treatment_calendar_entries")
+        .update({
+          product: updatedEntry.product,
+          notes: updatedEntry.notes || null,
+          next_application_date: updatedEntry.nextApplicationDate
+            ? format(updatedEntry.nextApplicationDate, "yyyy-MM-dd")
+            : null,
+        })
+        .eq("id", editingEntry.id)
+        .eq("user_id", user.id);
 
-    // Save undo state
-    if (previousEntry) {
-      setUndoState({
-        type: "edit",
-        entry: updatedEntry,
-        previousEntry: { ...previousEntry },
-      });
+      if (error) throw error;
 
-      toast.success("Entry updated!", {
-        action: {
-          label: "Undo",
-          onClick: () => handleUndo(),
-        },
-        duration: 5000,
-      });
+      setEntries(
+        entries.map((e) => (e.id === editingEntry.id ? updatedEntry : e))
+      );
+
+      // Save undo state
+      if (previousEntry) {
+        setUndoState({
+          type: "edit",
+          entry: updatedEntry,
+          previousEntry: { ...previousEntry },
+        });
+
+        toast.success("Entry updated!", {
+          action: {
+            label: "Undo",
+            onClick: () => handleUndo(),
+          },
+          duration: 5000,
+        });
+      }
+
+      setEditingEntry(null);
+      setNewEntry({ product: "", notes: "", nextApplicationDate: "" });
+    } catch (error) {
+      console.error("Failed to update entry:", error);
+      toast.error("Failed to update entry");
+    } finally {
+      setIsSaving(false);
     }
-
-    setEditingEntry(null);
-    setNewEntry({ product: "", notes: "", nextApplicationDate: "" });
   };
 
   const handleDeleteEntry = (entry: JournalEntry) => {
     setDeleteConfirmEntry(entry);
   };
 
-  const confirmDelete = () => {
-    if (!deleteConfirmEntry) return;
+  const confirmDelete = async () => {
+    if (!deleteConfirmEntry || !user) return;
 
     const deletedEntry = { ...deleteConfirmEntry };
-    setEntries(entries.filter((e) => e.id !== deleteConfirmEntry.id));
-    setDeleteConfirmEntry(null);
+    
+    try {
+      const { error } = await supabase
+        .from("treatment_calendar_entries")
+        .delete()
+        .eq("id", deleteConfirmEntry.id)
+        .eq("user_id", user.id);
 
-    // Save undo state
-    setUndoState({
-      type: "delete",
-      entry: deletedEntry,
-    });
+      if (error) throw error;
 
-    toast.success("Entry deleted", {
-      action: {
-        label: "Undo",
-        onClick: () => handleUndo(),
-      },
-      duration: 5000,
-    });
+      setEntries(entries.filter((e) => e.id !== deleteConfirmEntry.id));
+      setDeleteConfirmEntry(null);
+
+      // Save undo state
+      setUndoState({
+        type: "delete",
+        entry: deletedEntry,
+      });
+
+      toast.success("Entry deleted", {
+        action: {
+          label: "Undo",
+          onClick: () => handleUndo(),
+        },
+        duration: 5000,
+      });
+    } catch (error) {
+      console.error("Failed to delete entry:", error);
+      toast.error("Failed to delete entry");
+      setDeleteConfirmEntry(null);
+    }
   };
 
-  const handleUndo = useCallback(() => {
-    if (!undoState) return;
+  const handleUndo = useCallback(async () => {
+    if (!undoState || !user) return;
 
-    if (undoState.type === "delete") {
-      // Restore deleted entry
-      setEntries((prev) => [...prev, undoState.entry]);
-      toast.success("Entry restored!");
-    } else if (undoState.type === "edit" && undoState.previousEntry) {
-      // Restore previous version
-      setEntries((prev) =>
-        prev.map((e) =>
-          e.id === undoState.entry.id ? undoState.previousEntry! : e
-        )
-      );
-      toast.success("Changes reverted!");
+    try {
+      if (undoState.type === "delete") {
+        // Restore deleted entry to database
+        const { error } = await supabase
+          .from("treatment_calendar_entries")
+          .insert({
+            id: undoState.entry.id,
+            user_id: user.id,
+            date: format(undoState.entry.date, "yyyy-MM-dd"),
+            product: undoState.entry.product,
+            notes: undoState.entry.notes || null,
+            next_application_date: undoState.entry.nextApplicationDate
+              ? format(undoState.entry.nextApplicationDate, "yyyy-MM-dd")
+              : null,
+            notification_enabled: undoState.entry.notificationEnabled || false,
+          });
+
+        if (error) throw error;
+
+        setEntries((prev) => [...prev, undoState.entry]);
+        toast.success("Entry restored!");
+      } else if (undoState.type === "edit" && undoState.previousEntry) {
+        // Restore previous version to database
+        const { error } = await supabase
+          .from("treatment_calendar_entries")
+          .update({
+            product: undoState.previousEntry.product,
+            notes: undoState.previousEntry.notes || null,
+            next_application_date: undoState.previousEntry.nextApplicationDate
+              ? format(undoState.previousEntry.nextApplicationDate, "yyyy-MM-dd")
+              : null,
+          })
+          .eq("id", undoState.entry.id)
+          .eq("user_id", user.id);
+
+        if (error) throw error;
+
+        setEntries((prev) =>
+          prev.map((e) =>
+            e.id === undoState.entry.id ? undoState.previousEntry! : e
+          )
+        );
+        toast.success("Changes reverted!");
+      }
+    } catch (error) {
+      console.error("Failed to undo:", error);
+      toast.error("Failed to undo action");
     }
 
     setUndoState(null);
-  }, [undoState]);
+  }, [undoState, user]);
 
   const handleScheduleNotification = (entry: JournalEntry) => {
     if (!user) {
@@ -179,13 +324,23 @@ export function TreatmentCalendar() {
     setNotificationModalEntry(entry);
   };
 
-  const handleNotificationSuccess = () => {
-    if (notificationModalEntry) {
-      setEntries((prev) =>
-        prev.map((e) =>
-          e.id === notificationModalEntry.id ? { ...e, notificationEnabled: true } : e
-        )
-      );
+  const handleNotificationSuccess = async () => {
+    if (notificationModalEntry && user) {
+      try {
+        await supabase
+          .from("treatment_calendar_entries")
+          .update({ notification_enabled: true })
+          .eq("id", notificationModalEntry.id)
+          .eq("user_id", user.id);
+
+        setEntries((prev) =>
+          prev.map((e) =>
+            e.id === notificationModalEntry.id ? { ...e, notificationEnabled: true } : e
+          )
+        );
+      } catch (error) {
+        console.error("Failed to update notification status:", error);
+      }
     }
   };
 
@@ -398,7 +553,8 @@ export function TreatmentCalendar() {
                                     }
                                   />
                                 </div>
-                                <Button onClick={handleUpdateEntry} variant="scan" className="w-full">
+                                <Button onClick={handleUpdateEntry} variant="scan" className="w-full" disabled={isSaving}>
+                                  {isSaving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
                                   Update Entry
                                 </Button>
                               </div>
@@ -417,9 +573,13 @@ export function TreatmentCalendar() {
                     </div>
                   ))}
                 </div>
+              ) : isLoading ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="w-6 h-6 animate-spin text-primary" />
+                </div>
               ) : (
                 <p className="text-muted-foreground text-sm text-center py-8">
-                  No upcoming treatments scheduled
+                  {user ? "No upcoming treatments scheduled" : "Sign in to view your treatments"}
                 </p>
               )}
             </CardContent>
@@ -479,8 +639,9 @@ export function TreatmentCalendar() {
                         }
                       />
                     </div>
-                    <Button onClick={handleAddEntry} variant="scan" className="w-full">
-                      Save Entry
+                    <Button onClick={handleAddEntry} variant="scan" className="w-full" disabled={isSaving || !user}>
+                      {isSaving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+                      {!user ? "Sign in to Save" : "Save Entry"}
                     </Button>
                   </div>
                 </DialogContent>

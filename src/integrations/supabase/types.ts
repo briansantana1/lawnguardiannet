@@ -125,6 +125,42 @@ export type Database = {
         }
         Relationships: []
       }
+      treatment_calendar_entries: {
+        Row: {
+          created_at: string
+          date: string
+          id: string
+          next_application_date: string | null
+          notes: string | null
+          notification_enabled: boolean
+          product: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          date: string
+          id?: string
+          next_application_date?: string | null
+          notes?: string | null
+          notification_enabled?: boolean
+          product: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          date?: string
+          id?: string
+          next_application_date?: string | null
+          notes?: string | null
+          notification_enabled?: boolean
+          product?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
