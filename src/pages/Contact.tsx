@@ -62,6 +62,15 @@ export function Contact() {
   const { toast } = useToast();
   const navigate = useNavigate();
 
+  const handleBack = () => {
+    // If the user landed here via a direct load/refresh, there may be no in-app history entry.
+    if (window.history.length > 1) {
+      navigate(-1);
+      return;
+    }
+    navigate("/profile");
+  };
+
   const form = useForm<ContactFormData>({
     resolver: zodResolver(contactSchema),
     defaultValues: {
@@ -114,7 +123,7 @@ export function Contact() {
       <div className="border-b bg-card">
         <div className="container mx-auto px-4 py-4">
           <button 
-            onClick={() => navigate(-1)} 
+            onClick={handleBack} 
             className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors"
           >
             <ArrowLeft className="w-4 h-4" />
