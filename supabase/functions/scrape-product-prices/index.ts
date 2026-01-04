@@ -78,10 +78,13 @@ const matchesRetailer = (url: string, retailerName: string): boolean => {
 };
 
 // Scrape a specific product page directly for accurate pricing
-const scrapeProductPage = async (url: string, apiKey: string): Promise<{ price: string | null; title: string | null }> => {
+const scrapeProductPage = async (
+  url: string,
+  apiKey: string
+): Promise<{ price: string | null; title: string | null }> => {
   try {
     console.log(`Scraping product page: ${url}`);
-    
+
     const response = await fetch('https://api.firecrawl.dev/v1/scrape', {
       method: 'POST',
       headers: {
@@ -90,9 +93,13 @@ const scrapeProductPage = async (url: string, apiKey: string): Promise<{ price: 
       },
       body: JSON.stringify({
         url,
-        formats: ['markdown'],
+        // Ask Firecrawl to extract structured price to avoid picking up shipping/coupons/old prices.
+        formats: [
+          { type: 'json', prompt: 'Extract the current main product price shown in the buy box. Return JSON: {"price":"$0.00","title":"..."}. If no price is visible, set price to null.' },
+          'markdown',
+        ],
         onlyMainContent: true,
-        waitFor: 2000, // Wait for dynamic content
+        waitFor: 2500,
       }),
     });
 
@@ -102,14 +109,17 @@ const scrapeProductPage = async (url: string, apiKey: string): Promise<{ price: 
     }
 
     const data = await response.json();
+    const json = data.data?.json || data.json || null;
     const markdown = data.data?.markdown || data.markdown || '';
     const metadata = data.data?.metadata || data.metadata || {};
-    
-    const price = extractPrice(markdown);
-    const title = metadata.title || null;
-    
+
+    const extractedTitle = (json && typeof json.title === 'string' ? json.title : null) || metadata.title || null;
+    const extractedPrice = json && typeof json.price === 'string' ? json.price : null;
+
+    const price = extractedPrice || extractPrice(markdown);
+
     console.log(`Scraped price from ${url}: ${price}`);
-    return { price, title };
+    return { price, title: extractedTitle };
   } catch (error) {
     console.error(`Error scraping ${url}:`, error);
     return { price: null, title: null };
@@ -226,23 +236,24 @@ serve(async (req) => {
       if (urlInfo) {
         // Check if it's a product page worth scraping
         const url = urlInfo.url;
-        const isProductPage = 
+        const isProductPage =
           (retailer.name === 'Amazon' && url.includes('/dp/')) ||
           (retailer.name === 'Home Depot' && url.includes('/p/')) ||
           (retailer.name === "Lowe's" && url.includes('/pd/')) ||
           (retailer.name === 'Ace Hardware' && url.includes('/product/'));
-        
-        if (isProductPage && !urlInfo.searchPrice) {
-          // Scrape the product page for accurate price
+
+        if (isProductPage) {
+          // Prefer scraping the product page for accuracy; fall back to search snippet price if scrape fails.
           const scrapePromise = scrapeProductPage(url, apiKey).then(({ price, title }) => {
+            const finalPrice = price ?? urlInfo.searchPrice;
             results.push({
               retailer: retailer.name,
               productName: title || urlInfo.title,
-              price: price,
-              url: url,
-              available: Boolean(price),
+              price: finalPrice,
+              url,
+              available: Boolean(finalPrice),
               logo: retailer.logo,
-              priceSource: price ? 'live' : 'link'
+              priceSource: price ? 'live' : (urlInfo.searchPrice ? 'search' : 'link'),
             });
           });
           scrapePromises.push(scrapePromise);

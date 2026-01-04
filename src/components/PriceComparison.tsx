@@ -28,6 +28,25 @@ export function PriceComparison({ productName, productType }: PriceComparisonPro
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
 
+  const openExternal = async (url: string) => {
+    const opened = window.open(url, "_blank", "noopener,noreferrer");
+    if (!opened) {
+      try {
+        await navigator.clipboard.writeText(url);
+        toast({
+          title: "Pop-up blocked",
+          description: "We copied the link to your clipboard—paste it into a new tab.",
+        });
+      } catch {
+        toast({
+          title: "Pop-up blocked",
+          description: "Please allow pop-ups for this site to open retailer links.",
+          variant: "destructive",
+        });
+      }
+    }
+  };
+
   // Reset when user picks a different chemical/product type
   useEffect(() => {
     setResults([]);
@@ -167,6 +186,10 @@ export function PriceComparison({ productName, productType }: PriceComparisonPro
                   href={result.url}
                   target="_blank"
                   rel="noopener noreferrer"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    void openExternal(result.url);
+                  }}
                   className="flex items-center justify-between p-4 rounded-xl bg-card border border-border hover:border-primary/50 hover:shadow-md transition-all group"
                 >
                   <div className="flex items-center gap-3">
