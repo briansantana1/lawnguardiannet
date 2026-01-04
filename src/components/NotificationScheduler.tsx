@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useNotifications, type NotificationPreference } from "@/hooks/useNotifications";
 import { useAuth } from "@/hooks/useAuth";
+import { format } from "date-fns";
 
 interface NotificationSchedulerProps {
   open: boolean;
@@ -64,7 +65,8 @@ export function NotificationScheduler({ open, onOpenChange, treatment, onSuccess
           reminder: {
             treatmentId: treatment.id,
             product: treatment.product,
-            applicationDate: treatment.applicationDate.toISOString(),
+            // Send date-only to avoid timezone shifting (e.g., 1/10 showing as 1/9)
+            applicationDate: format(treatment.applicationDate, "yyyy-MM-dd"),
             notes: treatment.notes,
             notificationType,
             email: notificationType === "email" || notificationType === "both" ? email : undefined,

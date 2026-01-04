@@ -13,6 +13,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { NotificationScheduler } from "@/components/NotificationScheduler";
 
+function parseDateInput(value: string): Date {
+  // HTML date inputs return YYYY-MM-DD; parsing via new Date(value) treats it as UTC and can shift a day.
+  const [y, m, d] = value.split("-").map(Number);
+  return new Date(y, (m ?? 1) - 1, d ?? 1, 12, 0, 0, 0); // noon local to avoid TZ edge cases
+}
+
 interface JournalEntry {
   id: string;
   date: Date;
@@ -64,7 +70,7 @@ export function TreatmentCalendar() {
       product: newEntry.product.trim(),
       notes: newEntry.notes.trim(),
       nextApplicationDate: newEntry.nextApplicationDate
-        ? new Date(newEntry.nextApplicationDate)
+        ? parseDateInput(newEntry.nextApplicationDate)
         : undefined,
       notificationEnabled: false,
     };
@@ -84,7 +90,7 @@ export function TreatmentCalendar() {
       product: newEntry.product.trim() || editingEntry.product,
       notes: newEntry.notes.trim(),
       nextApplicationDate: newEntry.nextApplicationDate
-        ? new Date(newEntry.nextApplicationDate)
+        ? parseDateInput(newEntry.nextApplicationDate)
         : editingEntry.nextApplicationDate,
     };
 
