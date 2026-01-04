@@ -56,6 +56,7 @@ const productTypes = [
 export function TreatmentRecommendations() {
   const [saving, setSaving] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState("fungicide");
+  const [selectedChemical, setSelectedChemical] = useState<string>(treatmentExample.chemical[0]?.name || "");
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
   const { toast } = useToast();
   const { user } = useAuth();
@@ -77,17 +78,20 @@ export function TreatmentRecommendations() {
     }
   }, []);
 
-  // Build maps URL based on selected product and location
   const getMapsUrl = () => {
-    const product = productTypes.find(p => p.value === selectedProduct) || productTypes[0];
+    const product = productTypes.find((p) => p.value === selectedProduct) || productTypes[0];
     const searchTerm = `Home Depot Lowes garden center ${product.searchTerm}`;
     const encodedSearch = encodeURIComponent(searchTerm);
-    
+
+    // Use the Google Maps "api=1" format + maps.google.com fallback to reduce iframe / embed blocks.
     if (userLocation) {
-      return `https://www.google.com/maps/search/${encodedSearch}/@${userLocation.lat},${userLocation.lng},14z`;
+      return `https://www.google.com/maps/search/?api=1&query=${encodedSearch}&ll=${userLocation.lat},${userLocation.lng}`;
     }
-    return `https://www.google.com/maps/search/${encodedSearch}+near+me`;
+
+    return `https://maps.google.com/?q=${encodedSearch}`;
   };
+
+  const selectedChemicalSearch = (selectedChemical || "").split("(")[0].trim();
 
   const handleSaveTreatmentPlan = async () => {
     if (!user) {
@@ -229,26 +233,38 @@ export function TreatmentRecommendations() {
                     </h4>
                   </div>
                   <div className="space-y-4">
-                    {treatmentExample.chemical.map((treatment, i) => (
-                      <div
-                        key={i}
-                        className="p-4 rounded-xl bg-lawn-50 border border-lawn-100"
-                      >
-                        <p className="font-semibold text-foreground text-sm">
-                          {treatment.name}
-                        </p>
-                        <div className="mt-2 space-y-1">
-                          <p className="text-xs text-muted-foreground">
-                            <span className="font-medium">Rate:</span>{" "}
-                            {treatment.rate}
+                    {treatmentExample.chemical.map((treatment, i) => {
+                      const isSelected = treatment.name === selectedChemical;
+                      return (
+                        <button
+                          key={i}
+                          type="button"
+                          onClick={() => setSelectedChemical(treatment.name)}
+                          className={
+                            "w-full text-left p-4 rounded-xl border transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 " +
+                            (isSelected
+                              ? "bg-card border-primary shadow-sm"
+                              : "bg-lawn-50 border-lawn-100 hover:border-primary/40 hover:bg-card")
+                          }
+                          aria-pressed={isSelected}
+                        >
+                          <p className="font-semibold text-foreground text-sm flex items-center justify-between gap-3">
+                            <span>{treatment.name}</span>
+                            {isSelected && (
+                              <span className="text-xs font-medium text-primary">Selected</span>
+                            )}
                           </p>
-                          <p className="text-xs text-muted-foreground">
-                            <span className="font-medium">Interval:</span>{" "}
-                            {treatment.interval}
-                          </p>
-                        </div>
-                      </div>
-                    ))}
+                          <div className="mt-2 space-y-1">
+                            <p className="text-xs text-muted-foreground">
+                              <span className="font-medium">Rate:</span> {treatment.rate}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              <span className="font-medium">Interval:</span> {treatment.interval}
+                            </p>
+                          </div>
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
               </div>
@@ -316,9 +332,11 @@ export function TreatmentRecommendations() {
               </div>
 
               {/* Price Comparison Section */}
-              <PriceComparison 
-                productName={treatmentExample.chemical[0].name.split(' ')[0]} 
-                productType={productTypes.find(p => p.value === selectedProduct)?.searchTerm || 'fungicide'} 
+              <PriceComparison
+                productName={selectedChemicalSearch || treatmentExample.chemical[0]?.name.split("(")[0].trim()}
+                productType={
+                  productTypes.find((p) => p.value === selectedProduct)?.searchTerm || "fungicide"
+                }
               />
             </CardContent>
           </Card>
