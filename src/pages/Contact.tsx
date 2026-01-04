@@ -125,9 +125,16 @@ export function Contact() {
           <h1 className="font-heading text-3xl md:text-4xl font-bold text-foreground mb-3">
             Contact Us
           </h1>
-          <p className="text-muted-foreground text-lg">
-            Have a question or feedback? We'd love to hear from you.
+          <p className="text-muted-foreground text-lg mb-4">
+            We're here to help! Reach out to us for app issues, feedback, or suggestions.
           </p>
+          <a
+            href="mailto:info.lawnguardian@yahoo.com"
+            className="inline-flex items-center gap-2 text-primary hover:underline font-medium text-lg"
+          >
+            <Mail className="w-5 h-5" />
+            info.lawnguardian@yahoo.com
+          </a>
         </div>
 
         {isSuccess ? (
