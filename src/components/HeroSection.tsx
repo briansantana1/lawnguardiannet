@@ -26,7 +26,7 @@ export function HeroSection() {
           </div>
 
           {/* Mascot */}
-          <div className="relative w-48 h-48 mx-auto mb-8 animate-float">
+          <div className="relative w-48 h-48 mx-auto mb-8">
             <img
               src={mascot}
               alt="Lawn Guardian Mascot"
@@ -70,7 +70,7 @@ export function HeroSection() {
             className="mt-8 text-sm text-muted-foreground animate-fade-in"
             style={{ animationDelay: "0.4s" }}
           >
-            Trusted by 50,000+ lawn enthusiasts • Works with all grass types
+            Works with all grass types
           </p>
         </div>
       </div>
