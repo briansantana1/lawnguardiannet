@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, RefreshCw, Check } from "lucide-react";
+import { ArrowLeft, RefreshCw } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { BottomNavigation } from "@/components/BottomNavigation";
@@ -80,28 +80,10 @@ export function RestoreMembership() {
               </div>
             </div>
 
-            <div className="space-y-3 mb-6">
+            <div className="mb-6">
               <p className="text-muted-foreground text-sm">
-                By restoring your membership, you will regain:
+                By restoring your membership, you will regain access to your previous scans, diagnoses, and treatment plans.
               </p>
-              <ul className="space-y-2 text-sm text-muted-foreground">
-                <li className="flex items-center gap-2">
-                  <Check className="w-4 h-4 text-primary" />
-                  Unlimited photo scans
-                </li>
-                <li className="flex items-center gap-2">
-                  <Check className="w-4 h-4 text-primary" />
-                  Unlimited diagnoses
-                </li>
-                <li className="flex items-center gap-2">
-                  <Check className="w-4 h-4 text-primary" />
-                  Unlimited treatment plans
-                </li>
-                <li className="flex items-center gap-2">
-                  <Check className="w-4 h-4 text-primary" />
-                  Access to all features
-                </li>
-              </ul>
             </div>
 
             <div className="space-y-3">
