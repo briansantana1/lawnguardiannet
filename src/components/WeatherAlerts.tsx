@@ -10,6 +10,15 @@ import {
   MapPin,
   Settings,
   Loader2,
+  Sparkles,
+  RefreshCw,
+  Droplet,
+  Scissors,
+  Bug,
+  Leaf,
+  AlertTriangle,
+  Lightbulb,
+  Info,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -22,6 +31,7 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 interface WeatherData {
   location: string;
@@ -38,6 +48,25 @@ interface SoilTempData {
   loading: boolean;
 }
 
+interface AIRecommendation {
+  category: "watering" | "mowing" | "disease" | "fertilizing" | "general";
+  title: string;
+  description: string;
+  priority: "low" | "medium" | "high";
+}
+
+interface AIAlert {
+  type: "warning" | "caution" | "tip";
+  message: string;
+}
+
+interface AIAnalysis {
+  riskLevel: "low" | "medium" | "high";
+  summary: string;
+  recommendations: AIRecommendation[];
+  alerts: AIAlert[];
+}
+
 const defaultWeatherData: WeatherData = {
   location: "Loading...",
   temp: 0,
@@ -48,46 +77,39 @@ const defaultWeatherData: WeatherData = {
   feelsLike: 0,
 };
 
-const alerts = [
-  {
-    id: 1,
-    type: "disease",
-    title: "Brown Patch Risk: HIGH",
-    message:
-      "Current humidity and temperatures create ideal conditions for fungal growth. Consider preventative fungicide application.",
-    time: "2 hours ago",
-    severity: "high",
-  },
-  {
-    id: 2,
-    type: "insect",
-    title: "Grub Activity Increasing",
-    message:
-      "Soil temperatures are optimal for grub feeding. Monitor for spongy turf areas.",
-    time: "Today",
-    severity: "medium",
-  },
-  {
-    id: 3,
-    type: "action",
-    title: "Pre-emergent Application Due",
-    message:
-      "Soil temp reaching 55°F — ideal time for crabgrass pre-emergent in your area.",
-    time: "Tomorrow",
-    severity: "info",
-  },
-];
-
 const severityStyles = {
   high: "border-l-alert bg-alert/5",
   medium: "border-l-warning bg-warning/5",
   info: "border-l-sky bg-sky/5",
+  low: "border-l-lawn-500 bg-lawn-50",
+};
+
+const categoryIcons = {
+  watering: Droplet,
+  mowing: Scissors,
+  disease: Bug,
+  fertilizing: Leaf,
+  general: Info,
+};
+
+const alertTypeStyles = {
+  warning: { color: "text-alert", bg: "bg-alert/10", border: "border-alert/20" },
+  caution: { color: "text-warning", bg: "bg-warning/10", border: "border-warning/20" },
+  tip: { color: "text-sky", bg: "bg-sky/10", border: "border-sky/20" },
+};
+
+const alertTypeIcons = {
+  warning: AlertTriangle,
+  caution: AlertCircle,
+  tip: Lightbulb,
 };
 
 export function WeatherAlerts() {
   const [weatherData, setWeatherData] = useState<WeatherData>(defaultWeatherData);
   const [soilTempData, setSoilTempData] = useState<SoilTempData>({ temps: [], loading: true });
   const [loading, setLoading] = useState(true);
+  const [aiAnalysis, setAiAnalysis] = useState<AIAnalysis | null>(null);
+  const [aiLoading, setAiLoading] = useState(false);
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
   const [manageDialogOpen, setManageDialogOpen] = useState(false);
   const [notificationSettings, setNotificationSettings] = useState({
@@ -98,29 +120,50 @@ export function WeatherAlerts() {
   });
   const { toast } = useToast();
 
+  // Fetch AI analysis when weather data is loaded
+  const fetchAIAnalysis = async (weather: WeatherData) => {
+    if (weather.location === "Loading..." || weather.temp === 0) return;
+    
+    setAiLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("analyze-weather", {
+        body: { weatherData: weather },
+      });
+
+      if (error) {
+        console.error("AI analysis error:", error);
+        toast({
+          title: "AI Analysis Unavailable",
+          description: "Using default recommendations. Try refreshing.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      if (data?.analysis) {
+        setAiAnalysis(data.analysis);
+      }
+    } catch (error) {
+      console.error("Failed to fetch AI analysis:", error);
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
   // Fetch real weather data based on user's location
   useEffect(() => {
     const fetchWeatherData = async (lat: number, lon: number) => {
       try {
-        // Using Open-Meteo API (free, no API key required)
         const response = await fetch(
           `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m&hourly=soil_temperature_6cm&past_days=7&forecast_days=1&temperature_unit=fahrenheit&wind_speed_unit=mph`
         );
         const data = await response.json();
         
-        // Get location name using reverse geocoding
-        const geoResponse = await fetch(
-          `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m`
-        );
-        
-        // Simple location display
         const locationName = await getLocationName(lat, lon);
-        
         const weatherCode = data.current.weather_code;
         const conditions = getWeatherCondition(weatherCode);
         
-        // Get soil temperature (average of last value)
-        const soilTemps = data.hourly.soil_temperature_6cm.slice(-168); // Last 7 days (24 * 7)
+        const soilTemps = data.hourly.soil_temperature_6cm.slice(-168);
         const dailySoilTemps: number[] = [];
         for (let i = 0; i < 7; i++) {
           const dayTemps = soilTemps.slice(i * 24, (i + 1) * 24);
@@ -128,7 +171,7 @@ export function WeatherAlerts() {
           dailySoilTemps.push(avgTemp);
         }
         
-        setWeatherData({
+        const newWeatherData = {
           location: locationName,
           temp: Math.round(data.current.temperature_2m),
           humidity: Math.round(data.current.relative_humidity_2m),
@@ -136,10 +179,14 @@ export function WeatherAlerts() {
           soilTemp: dailySoilTemps[dailySoilTemps.length - 1] || 0,
           conditions,
           feelsLike: Math.round(data.current.apparent_temperature),
-        });
+        };
         
+        setWeatherData(newWeatherData);
         setSoilTempData({ temps: dailySoilTemps, loading: false });
         setLoading(false);
+        
+        // Fetch AI analysis after weather data is loaded
+        fetchAIAnalysis(newWeatherData);
       } catch (error) {
         console.error("Error fetching weather data:", error);
         setLoading(false);
@@ -147,7 +194,6 @@ export function WeatherAlerts() {
       }
     };
 
-    // Get user's location
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
@@ -155,12 +201,10 @@ export function WeatherAlerts() {
         },
         (error) => {
           console.error("Geolocation error:", error);
-          // Default to Austin, TX if location access denied
           fetchWeatherData(30.2672, -97.7431);
         }
       );
     } else {
-      // Fallback location
       fetchWeatherData(30.2672, -97.7431);
     }
   }, []);
@@ -194,6 +238,10 @@ export function WeatherAlerts() {
     return "Partly Cloudy";
   };
 
+  const handleRefreshAnalysis = () => {
+    fetchAIAnalysis(weatherData);
+  };
+
   const handleEnableNotifications = async () => {
     if ("Notification" in window) {
       const permission = await Notification.requestPermission();
@@ -224,6 +272,12 @@ export function WeatherAlerts() {
   const displaySoilTemps = soilTempData.loading ? [58, 62, 68, 72, 74, 73, 70] : soilTempData.temps;
   const minTemp = Math.min(...displaySoilTemps);
   const maxTemp = Math.max(...displaySoilTemps);
+
+  const riskLevelColors = {
+    low: "bg-lawn-500",
+    medium: "bg-warning",
+    high: "bg-alert",
+  };
 
   return (
     <section id="weather" className="py-20 bg-lawn-50 lawn-pattern">
@@ -336,61 +390,127 @@ export function WeatherAlerts() {
             </Card>
           </div>
 
-          {/* Alerts & Notifications */}
+          {/* AI-Powered Insights */}
           <div id="alerts">
             <div className="flex items-center justify-between mb-6">
-              <h2 className="font-heading text-3xl font-bold text-foreground">
-                Alerts & Forecasts
-              </h2>
-              <Button 
-                variant="ghost" 
-                size="sm"
-                onClick={() => setManageDialogOpen(true)}
-              >
-                <Settings className="w-4 h-4 mr-1" />
-                Manage
-              </Button>
+              <div className="flex items-center gap-2">
+                <h2 className="font-heading text-3xl font-bold text-foreground">
+                  AI Lawn Insights
+                </h2>
+                <Sparkles className="w-6 h-6 text-primary" />
+              </div>
+              <div className="flex gap-2">
+                <Button 
+                  variant="ghost" 
+                  size="sm"
+                  onClick={handleRefreshAnalysis}
+                  disabled={aiLoading}
+                >
+                  <RefreshCw className={`w-4 h-4 mr-1 ${aiLoading ? 'animate-spin' : ''}`} />
+                  Refresh
+                </Button>
+                <Button 
+                  variant="ghost" 
+                  size="sm"
+                  onClick={() => setManageDialogOpen(true)}
+                >
+                  <Settings className="w-4 h-4 mr-1" />
+                  Manage
+                </Button>
+              </div>
             </div>
 
-            <div className="space-y-4">
-              {alerts.map((alert) => (
-                <Card
-                  key={alert.id}
-                  className={`border-l-4 ${
-                    severityStyles[alert.severity as keyof typeof severityStyles]
-                  }`}
-                >
+            {/* AI Summary Card */}
+            {aiLoading ? (
+              <Card className="mb-4">
+                <CardContent className="p-6 flex items-center justify-center">
+                  <Loader2 className="w-6 h-6 animate-spin text-primary mr-3" />
+                  <span className="text-muted-foreground">Analyzing conditions...</span>
+                </CardContent>
+              </Card>
+            ) : aiAnalysis ? (
+              <>
+                {/* Risk Level & Summary */}
+                <Card className="mb-4 overflow-hidden">
+                  <div className={`h-2 ${riskLevelColors[aiAnalysis.riskLevel]}`} />
                   <CardContent className="p-4">
-                    <div className="flex gap-4">
-                      <div className="w-10 h-10 rounded-full bg-card flex items-center justify-center shadow-sm shrink-0">
-                        <AlertCircle
-                          className={`w-5 h-5 ${
-                            alert.severity === "high"
-                              ? "text-alert"
-                              : alert.severity === "medium"
-                              ? "text-warning"
-                              : "text-sky"
-                          }`}
-                        />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-start justify-between gap-2">
-                          <h3 className="font-semibold text-foreground">
-                            {alert.title}
-                          </h3>
-                          <span className="text-xs text-muted-foreground shrink-0">
-                            {alert.time}
-                          </span>
-                        </div>
-                        <p className="text-sm text-muted-foreground mt-1">
-                          {alert.message}
-                        </p>
-                      </div>
+                    <div className="flex items-center gap-3 mb-2">
+                      <span className={`px-3 py-1 rounded-full text-xs font-semibold text-white ${riskLevelColors[aiAnalysis.riskLevel]}`}>
+                        {aiAnalysis.riskLevel.toUpperCase()} RISK
+                      </span>
+                      <span className="text-xs text-muted-foreground">AI-powered analysis</span>
                     </div>
+                    <p className="text-foreground">{aiAnalysis.summary}</p>
                   </CardContent>
                 </Card>
-              ))}
-            </div>
+
+                {/* AI Alerts */}
+                {aiAnalysis.alerts && aiAnalysis.alerts.length > 0 && (
+                  <div className="space-y-3 mb-4">
+                    {aiAnalysis.alerts.map((alert, index) => {
+                      const AlertIcon = alertTypeIcons[alert.type];
+                      const styles = alertTypeStyles[alert.type];
+                      return (
+                        <div
+                          key={index}
+                          className={`flex items-start gap-3 p-3 rounded-xl border ${styles.bg} ${styles.border}`}
+                        >
+                          <AlertIcon className={`w-5 h-5 shrink-0 mt-0.5 ${styles.color}`} />
+                          <p className="text-sm text-foreground">{alert.message}</p>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {/* Recommendations */}
+                <div className="space-y-3">
+                  {aiAnalysis.recommendations.map((rec, index) => {
+                    const CategoryIcon = categoryIcons[rec.category] || Info;
+                    return (
+                      <Card
+                        key={index}
+                        className={`border-l-4 ${severityStyles[rec.priority]}`}
+                      >
+                        <CardContent className="p-4">
+                          <div className="flex gap-4">
+                            <div className="w-10 h-10 rounded-full bg-card flex items-center justify-center shadow-sm shrink-0">
+                              <CategoryIcon className="w-5 h-5 text-primary" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-start justify-between gap-2">
+                                <h3 className="font-semibold text-foreground">
+                                  {rec.title}
+                                </h3>
+                                <span className={`text-xs px-2 py-0.5 rounded-full ${
+                                  rec.priority === "high" 
+                                    ? "bg-alert/10 text-alert" 
+                                    : rec.priority === "medium"
+                                    ? "bg-warning/10 text-warning"
+                                    : "bg-lawn-100 text-lawn-700"
+                                }`}>
+                                  {rec.priority}
+                                </span>
+                              </div>
+                              <p className="text-sm text-muted-foreground mt-1">
+                                {rec.description}
+                              </p>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </div>
+              </>
+            ) : (
+              <Card className="mb-4">
+                <CardContent className="p-6 text-center">
+                  <Sparkles className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
+                  <p className="text-muted-foreground">AI insights will appear once weather data loads</p>
+                </CardContent>
+              </Card>
+            )}
 
             {/* Enable Notifications CTA */}
             <Card className="mt-6 gradient-lawn text-primary-foreground">
