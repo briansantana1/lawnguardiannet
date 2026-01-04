@@ -112,16 +112,36 @@ export function IssueDatabase() {
 
         {/* Search Bar */}
         <div className="max-w-xl mx-auto mb-10">
-          <div className="relative">
+          <form
+            className="relative"
+            onSubmit={(e) => {
+              // Prevent full-page reload when users press Enter (common expectation for “search” inputs)
+              e.preventDefault();
+            }}
+          >
             <input
-              type="text"
+              type="search"
+              inputMode="search"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
+              aria-label="Search lawn issues by symptom"
               placeholder="Search by symptom (e.g., circular patches, brown spots...)"
-              className="w-full h-14 px-6 pr-12 rounded-2xl border border-lawn-200 bg-card text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent shadow-sm"
+              className="w-full h-14 px-6 pr-24 rounded-2xl border border-lawn-200 bg-card text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent shadow-sm"
             />
-            <Search className="absolute right-5 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-          </div>
+
+            <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-2">
+              <Search className="pointer-events-none w-5 h-5 text-muted-foreground" />
+              <Button type="submit" variant="ghost" size="sm" className="rounded-xl">
+                Search
+              </Button>
+            </div>
+          </form>
+
+          <p className="mt-2 text-center text-sm text-muted-foreground">
+            {searchQuery.trim()
+              ? `Searching for "${searchQuery.trim()}" — showing ${filteredIssues.length} of ${issues.length}`
+              : `Showing ${filteredIssues.length} of ${issues.length}`}
+          </p>
         </div>
 
         {/* Issues Grid */}
