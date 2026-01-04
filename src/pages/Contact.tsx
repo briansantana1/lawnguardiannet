@@ -3,7 +3,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { ArrowLeft, Send, Loader2, Mail, User, MessageSquare, CheckCircle } from "lucide-react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -61,13 +61,22 @@ export function Contact() {
   const [isSuccess, setIsSuccess] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const handleBack = () => {
+    const from = (location.state as { from?: string } | null)?.from;
+
+    if (typeof from === "string" && from.length > 0) {
+      navigate(from);
+      return;
+    }
+
     // If the user landed here via a direct load/refresh, there may be no in-app history entry.
     if (window.history.length > 1) {
       navigate(-1);
       return;
     }
+
     navigate("/profile");
   };
 
