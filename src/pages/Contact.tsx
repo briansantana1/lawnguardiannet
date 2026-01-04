@@ -3,7 +3,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { ArrowLeft, Send, Loader2, Mail, User, MessageSquare, CheckCircle } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -53,7 +53,6 @@ const subjectOptions = [
   { value: "support", label: "Technical Support" },
   { value: "feedback", label: "Feedback & Suggestions" },
   { value: "bug", label: "Report a Bug" },
-  { value: "partnership", label: "Partnership Opportunity" },
   { value: "other", label: "Other" },
 ];
 
@@ -61,6 +60,7 @@ export function Contact() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   const form = useForm<ContactFormData>({
     resolver: zodResolver(contactSchema),
@@ -113,10 +113,13 @@ export function Contact() {
       {/* Header */}
       <div className="border-b bg-card">
         <div className="container mx-auto px-4 py-4">
-          <Link to="/" className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors">
+          <button 
+            onClick={() => navigate(-1)} 
+            className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors"
+          >
             <ArrowLeft className="w-4 h-4" />
-            Back to Home
-          </Link>
+            Back
+          </button>
         </div>
       </div>
 
@@ -273,7 +276,7 @@ export function Contact() {
                     ) : (
                       <>
                         <Send className="w-4 h-4 mr-2" />
-                        Send Message
+                        Send E-mail
                       </>
                     )}
                   </Button>
@@ -283,18 +286,6 @@ export function Contact() {
           </Card>
         )}
 
-        {/* Alternative Contact */}
-        <div className="mt-8 text-center">
-          <p className="text-muted-foreground text-sm">
-            Prefer email? Reach us directly at{" "}
-            <a
-              href="mailto:info.lawnguardian@yahoo.com"
-              className="text-primary hover:underline font-medium"
-            >
-              info.lawnguardian@yahoo.com
-            </a>
-          </p>
-        </div>
       </div>
     </div>
   );
