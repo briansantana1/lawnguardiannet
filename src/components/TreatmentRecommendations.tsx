@@ -41,7 +41,7 @@ export function TreatmentRecommendations() {
   const { toast } = useToast();
   const { user } = useAuth();
 
-  const [mapsUrl, setMapsUrl] = useState("https://www.google.com/maps/search/lawn+care+products+near+me");
+  const [mapsUrl, setMapsUrl] = useState("https://www.google.com/maps/search/Home+Depot+Lowes+garden+center+nursery+lawn+care+near+me");
 
   // Get user location for maps URL
   const updateMapsUrl = () => {
@@ -49,7 +49,7 @@ export function TreatmentRecommendations() {
       navigator.geolocation.getCurrentPosition(
         (position) => {
           const { latitude, longitude } = position.coords;
-          const searchQuery = encodeURIComponent("lawn care products fungicide");
+          const searchQuery = encodeURIComponent("Home Depot Lowes garden center nursery lawn care");
           setMapsUrl(`https://www.google.com/maps/search/${searchQuery}/@${latitude},${longitude},14z`);
         },
         () => {
