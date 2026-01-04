@@ -13,6 +13,7 @@ interface ProductResult {
   url: string;
   available: boolean;
   logo?: string;
+  priceSource?: "live" | "search" | "link";
 }
 
 interface PriceComparisonProps {
@@ -185,11 +186,18 @@ export function PriceComparison({ productName, productType }: PriceComparisonPro
                         <p className="font-bold text-lg text-foreground">
                           {result.price}
                         </p>
-                        {result.price === lowestPrice && (
-                          <Badge variant="default" className="text-xs bg-lawn-600">
-                            Lowest
-                          </Badge>
-                        )}
+                        <div className="flex items-center gap-1 justify-end">
+                          {result.price === lowestPrice && (
+                            <Badge variant="default" className="text-xs bg-lawn-600">
+                              Lowest
+                            </Badge>
+                          )}
+                          {result.priceSource === "live" && (
+                            <Badge variant="outline" className="text-xs text-primary border-primary/50">
+                              Live
+                            </Badge>
+                          )}
+                        </div>
                       </div>
                     ) : (
                       <Badge variant="outline" className="text-muted-foreground">
