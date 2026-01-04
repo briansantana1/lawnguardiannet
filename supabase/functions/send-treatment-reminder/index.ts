@@ -83,10 +83,17 @@ serve(async (req) => {
       notificationScheduled: false,
     };
 
-    // Send email reminder if requested
+function parseIncomingDate(value: string): Date {
+  // Accept either ISO string or YYYY-MM-DD (sent from the web app to avoid TZ shifting)
+  if (value.includes("T")) return new Date(value);
+  const [y, m, d] = value.split("-").map(Number);
+  return new Date(y, (m ?? 1) - 1, d ?? 1, 12, 0, 0, 0);
+}
+
+// Send email reminder if requested
     if ((reminder.notificationType === "email" || reminder.notificationType === "both") && reminder.email) {
       try {
-        const applicationDate = new Date(reminder.applicationDate);
+        const applicationDate = parseIncomingDate(reminder.applicationDate);
         const formattedDate = applicationDate.toLocaleDateString("en-US", {
           weekday: "long",
           year: "numeric",
@@ -148,7 +155,7 @@ serve(async (req) => {
     // Schedule database notification for browser push
     if (reminder.notificationType === "browser" || reminder.notificationType === "both") {
       try {
-        const applicationDate = new Date(reminder.applicationDate);
+        const applicationDate = parseIncomingDate(reminder.applicationDate);
         
         // Schedule reminder for day before at 9 AM
         const dayBeforeReminder = new Date(applicationDate);
