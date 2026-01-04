@@ -1,7 +1,6 @@
-import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
-const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
+const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -14,9 +13,9 @@ serve(async (req) => {
   }
 
   try {
-    if (!openAIApiKey) {
-      console.error('OPENAI_API_KEY is not configured');
-      throw new Error('OpenAI API key is not configured');
+    if (!LOVABLE_API_KEY) {
+      console.error('LOVABLE_API_KEY is not configured');
+      throw new Error('AI API key is not configured');
     }
 
     const { imageBase64, grassType, season, location } = await req.json();
@@ -25,7 +24,7 @@ serve(async (req) => {
       throw new Error('No image provided');
     }
 
-    console.log('Analyzing lawn image with OpenAI Vision...');
+    console.log('Analyzing lawn image with Gemini Vision...');
     console.log('Grass type:', grassType || 'Unknown');
     console.log('Season:', season || 'Unknown');
     console.log('Location:', location || 'Unknown');
@@ -89,14 +88,14 @@ Your responses must be in valid JSON format with the following structure:
 
 Consider the grass type (${grassType || 'cool-season grass'}), current season (${season || 'unknown'}), and location (${location || 'unknown'}) when making recommendations. Be specific with chemical recommendations including exact active ingredients, application rates (e.g., 0.2-0.4 oz per 1,000 sq ft), and frequencies (e.g., every 14-28 days).`;
 
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${openAIApiKey}`,
+        'Authorization': `Bearer ${LOVABLE_API_KEY}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-4o',
+        model: 'google/gemini-2.5-flash',
         messages: [
           { 
             role: 'system', 
@@ -107,7 +106,7 @@ Consider the grass type (${grassType || 'cool-season grass'}), current season ($
             content: [
               {
                 type: 'text',
-                text: `Please analyze this lawn image and provide a comprehensive diagnosis, treatment plan, and forecast. The lawn is ${grassType || 'unknown grass type'} in ${location || 'an unknown location'} during ${season || 'an unknown season'}.`
+                text: `Please analyze this lawn image and provide a comprehensive diagnosis, treatment plan, and forecast. The lawn is ${grassType || 'unknown grass type'} in ${location || 'an unknown location'} during ${season || 'an unknown season'}. Respond ONLY with the JSON object, no additional text.`
               },
               {
                 type: 'image_url',
@@ -118,22 +117,35 @@ Consider the grass type (${grassType || 'cool-season grass'}), current season ($
             ]
           }
         ],
-        max_tokens: 4000,
       }),
     });
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('OpenAI API error:', response.status, errorText);
-      throw new Error(`OpenAI API error: ${response.status}`);
+      console.error('AI gateway error:', response.status, errorText);
+      
+      if (response.status === 429) {
+        return new Response(JSON.stringify({ error: 'Rate limit exceeded. Please try again in a moment.' }), {
+          status: 429,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      if (response.status === 402) {
+        return new Response(JSON.stringify({ error: 'AI credits exhausted. Please add credits to continue.' }), {
+          status: 402,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      
+      throw new Error(`AI gateway error: ${response.status}`);
     }
 
     const data = await response.json();
-    console.log('OpenAI response received');
+    console.log('AI response received');
 
-    const content = data.choices[0]?.message?.content;
+    const content = data.choices?.[0]?.message?.content;
     if (!content) {
-      throw new Error('No content in OpenAI response');
+      throw new Error('No content in AI response');
     }
 
     // Parse the JSON from the response
@@ -142,7 +154,7 @@ Consider the grass type (${grassType || 'cool-season grass'}), current season ($
       // Try to extract JSON from the response (it might be wrapped in markdown code blocks)
       const jsonMatch = content.match(/```json\s*([\s\S]*?)\s*```/) || content.match(/```\s*([\s\S]*?)\s*```/);
       const jsonString = jsonMatch ? jsonMatch[1] : content;
-      analysisResult = JSON.parse(jsonString);
+      analysisResult = JSON.parse(jsonString.trim());
     } catch (parseError) {
       console.error('Failed to parse JSON response:', parseError);
       console.log('Raw content:', content);
