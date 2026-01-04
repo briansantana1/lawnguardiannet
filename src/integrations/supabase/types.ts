@@ -14,6 +14,48 @@ export type Database = {
   }
   public: {
     Tables: {
+      notification_schedules: {
+        Row: {
+          category: string
+          created_at: string
+          id: string
+          is_read: boolean
+          message: string
+          priority: string
+          scheduled_for: string
+          sent_at: string | null
+          title: string
+          user_id: string
+          weather_context: Json | null
+        }
+        Insert: {
+          category: string
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          message: string
+          priority?: string
+          scheduled_for: string
+          sent_at?: string | null
+          title: string
+          user_id: string
+          weather_context?: Json | null
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          message?: string
+          priority?: string
+          scheduled_for?: string
+          sent_at?: string | null
+          title?: string
+          user_id?: string
+          weather_context?: Json | null
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string
