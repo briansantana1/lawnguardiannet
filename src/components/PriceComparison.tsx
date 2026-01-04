@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ExternalLink, Loader2, DollarSign, Search, AlertCircle, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -26,6 +26,14 @@ export function PriceComparison({ productName, productType }: PriceComparisonPro
   const [searched, setSearched] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
+
+  // Reset when user picks a different chemical/product type
+  useEffect(() => {
+    setResults([]);
+    setSearched(false);
+    setError(null);
+    setLoading(false);
+  }, [productName, productType]);
 
   const handleSearch = async () => {
     setLoading(true);
