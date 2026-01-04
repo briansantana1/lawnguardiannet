@@ -1,4 +1,5 @@
-import { AlertTriangle, Bug, Leaf, CircleDot, ChevronRight } from "lucide-react";
+import { useState } from "react";
+import { AlertTriangle, Bug, Leaf, CircleDot, ChevronRight, Search } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
@@ -50,7 +51,33 @@ const typeIcons = {
   weed: Leaf,
 };
 
+type FilterType = "all" | "disease" | "insect" | "weed";
+
 export function IssueDatabase() {
+  const [activeFilter, setActiveFilter] = useState<FilterType>("all");
+  const [searchQuery, setSearchQuery] = useState("");
+
+  const filters: { label: string; value: FilterType; icon?: typeof CircleDot }[] = [
+    { label: "All Issues", value: "all" },
+    { label: "Diseases", value: "disease", icon: CircleDot },
+    { label: "Insects", value: "insect", icon: Bug },
+    { label: "Weeds", value: "weed", icon: Leaf },
+  ];
+
+  const filteredIssues = issues.filter((issue) => {
+    // Filter by type
+    const matchesType = activeFilter === "all" || issue.type === activeFilter;
+    
+    // Filter by search query (searches in name, symptoms, and description)
+    const query = searchQuery.toLowerCase().trim();
+    const matchesSearch = query === "" || 
+      issue.name.toLowerCase().includes(query) ||
+      issue.description.toLowerCase().includes(query) ||
+      issue.symptoms.some(symptom => symptom.toLowerCase().includes(query));
+    
+    return matchesType && matchesSearch;
+  });
+
   return (
     <section id="issues" className="py-20 bg-background">
       <div className="container mx-auto px-4">
@@ -67,16 +94,12 @@ export function IssueDatabase() {
 
         {/* Filter Chips */}
         <div className="flex flex-wrap justify-center gap-3 mb-10">
-          {[
-            { label: "All Issues", active: true },
-            { label: "Diseases", icon: CircleDot },
-            { label: "Insects", icon: Bug },
-            { label: "Weeds", icon: Leaf },
-          ].map((filter) => (
+          {filters.map((filter) => (
             <button
-              key={filter.label}
+              key={filter.value}
+              onClick={() => setActiveFilter(filter.value)}
               className={`flex items-center gap-2 px-5 py-2.5 rounded-full font-medium text-sm transition-all duration-200 ${
-                filter.active
+                activeFilter === filter.value
                   ? "bg-primary text-primary-foreground shadow-lawn"
                   : "bg-lawn-100 text-foreground hover:bg-lawn-200"
               }`}
@@ -92,83 +115,106 @@ export function IssueDatabase() {
           <div className="relative">
             <input
               type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search by symptom (e.g., circular patches, brown spots...)"
               className="w-full h-14 px-6 pr-12 rounded-2xl border border-lawn-200 bg-card text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent shadow-sm"
             />
-            <AlertTriangle className="absolute right-5 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+            <Search className="absolute right-5 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
           </div>
         </div>
 
         {/* Issues Grid */}
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {issues.map((issue) => {
-            const TypeIcon = typeIcons[issue.type as keyof typeof typeIcons];
-            return (
-              <Card key={issue.id} variant="issue" className="group cursor-pointer">
-                <CardHeader className="pb-3">
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="w-12 h-12 rounded-xl bg-lawn-100 flex items-center justify-center group-hover:scale-110 transition-transform">
-                        <TypeIcon className="w-6 h-6 text-primary" />
+          {filteredIssues.length > 0 ? (
+            filteredIssues.map((issue) => {
+              const TypeIcon = typeIcons[issue.type as keyof typeof typeIcons];
+              return (
+                <Card key={issue.id} variant="issue" className="group cursor-pointer">
+                  <CardHeader className="pb-3">
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 rounded-xl bg-lawn-100 flex items-center justify-center group-hover:scale-110 transition-transform">
+                          <TypeIcon className="w-6 h-6 text-primary" />
+                        </div>
+                        <div>
+                          <CardTitle className="text-lg">{issue.name}</CardTitle>
+                          <span className="text-xs text-muted-foreground capitalize">
+                            {issue.type}
+                          </span>
+                        </div>
                       </div>
-                      <div>
-                        <CardTitle className="text-lg">{issue.name}</CardTitle>
-                        <span className="text-xs text-muted-foreground capitalize">
-                          {issue.type}
-                        </span>
-                      </div>
+                      <span
+                        className={`px-3 py-1 rounded-full text-xs font-medium border ${
+                          severityColors[issue.severity as keyof typeof severityColors]
+                        }`}
+                      >
+                        {issue.severity}
+                      </span>
                     </div>
-                    <span
-                      className={`px-3 py-1 rounded-full text-xs font-medium border ${
-                        severityColors[issue.severity as keyof typeof severityColors]
-                      }`}
-                    >
-                      {issue.severity}
-                    </span>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-sm text-muted-foreground mb-4">
-                    {issue.description}
-                  </p>
-
-                  {/* Symptoms */}
-                  <div className="mb-4">
-                    <p className="text-xs font-semibold text-foreground mb-2">
-                      Symptoms:
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-sm text-muted-foreground mb-4">
+                      {issue.description}
                     </p>
-                    <div className="flex flex-wrap gap-2">
-                      {issue.symptoms.map((symptom) => (
-                        <span
-                          key={symptom}
-                          className="px-2 py-1 rounded-lg bg-lawn-100 text-xs text-foreground"
-                        >
-                          {symptom}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
 
-                  {/* Treatment Preview */}
-                  <div className="pt-4 border-t border-lawn-100">
-                    <Button variant="ghost" size="sm" className="w-full justify-between">
-                      View Treatment
-                      <ChevronRight className="w-4 h-4" />
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            );
-          })}
+                    {/* Symptoms */}
+                    <div className="mb-4">
+                      <p className="text-xs font-semibold text-foreground mb-2">
+                        Symptoms:
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        {issue.symptoms.map((symptom) => (
+                          <span
+                            key={symptom}
+                            className="px-2 py-1 rounded-lg bg-lawn-100 text-xs text-foreground"
+                          >
+                            {symptom}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Treatment Preview */}
+                    <div className="pt-4 border-t border-lawn-100">
+                      <Button variant="ghost" size="sm" className="w-full justify-between">
+                        View Treatment
+                        <ChevronRight className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })
+          ) : (
+            <div className="col-span-full text-center py-12">
+              <AlertTriangle className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+              <p className="text-muted-foreground text-lg">
+                No issues found matching your search.
+              </p>
+              <Button 
+                variant="ghost" 
+                className="mt-4"
+                onClick={() => {
+                  setSearchQuery("");
+                  setActiveFilter("all");
+                }}
+              >
+                Clear filters
+              </Button>
+            </div>
+          )}
         </div>
 
         {/* View All Button */}
-        <div className="text-center mt-10">
-          <Button variant="outline" size="lg">
-            Browse All Issues
-            <ChevronRight className="w-4 h-4" />
-          </Button>
-        </div>
+        {filteredIssues.length > 0 && (
+          <div className="text-center mt-10">
+            <Button variant="outline" size="lg">
+              Browse All Issues
+              <ChevronRight className="w-4 h-4" />
+            </Button>
+          </div>
+        )}
       </div>
     </section>
   );
