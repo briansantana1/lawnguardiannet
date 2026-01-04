@@ -423,9 +423,14 @@ export function WeatherAlerts() {
                   <div>
                     <div className="flex items-center gap-2">
                       <MapPin className="w-4 h-4 opacity-80" />
-                      <p className="text-sm opacity-80">
-                        {loading ? "Detecting location..." : weatherData.location}
-                      </p>
+                      <div>
+                        <p className="text-sm opacity-80">
+                          {loading ? "Detecting location..." : weatherData.location}
+                        </p>
+                        {!loading && weatherData.location === "Your Location" && (
+                          <p className="text-xs opacity-60">Enable location for local data</p>
+                        )}
+                      </div>
                     </div>
                     <div className="flex items-end gap-2 mt-1">
                       {loading ? (
@@ -494,23 +499,27 @@ export function WeatherAlerts() {
                   <p className="text-sm font-semibold text-foreground mb-3">
                     Soil Temperature Trend
                   </p>
-                  <div className="flex items-end justify-between h-20 gap-1">
-                    {displaySoilTemps.map((temp, i) => (
-                      <div key={i} className="flex-1 flex flex-col items-center">
-                        <span className="text-xs text-muted-foreground mb-1 font-medium">
-                          {temp}°
-                        </span>
-                        <div
-                          className="w-full rounded-t-md gradient-lawn transition-all duration-300 hover:opacity-80"
-                          style={{ height: `${((temp - minTemp + 5) / (maxTemp - minTemp + 10)) * 100}%`, minHeight: '20%' }}
-                          title={`Day ${i + 1}: ${temp}°F`}
-                        />
-                      </div>
-                    ))}
-                  </div>
-                  <div className="flex justify-between mt-2 text-xs text-muted-foreground">
-                    <span>7 days ago</span>
-                    <span>Today</span>
+                  <div className="flex items-end justify-between h-24 gap-2">
+                    {displaySoilTemps.map((temp, i) => {
+                      const dayLabels = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+                      const today = new Date();
+                      const dayIndex = new Date(today.getTime() - (6 - i) * 24 * 60 * 60 * 1000).getDay();
+                      return (
+                        <div key={i} className="flex-1 flex flex-col items-center">
+                          <span className="text-xs text-muted-foreground mb-1 font-medium">
+                            {temp}°
+                          </span>
+                          <div
+                            className="w-full rounded-t-md gradient-lawn transition-all duration-300 hover:opacity-80 cursor-pointer"
+                            style={{ height: `${((temp - minTemp + 5) / (maxTemp - minTemp + 10)) * 100}%`, minHeight: "24%" }}
+                            title={`${dayLabels[dayIndex]}: ${temp}°F`}
+                          />
+                          <span className="text-[10px] text-muted-foreground mt-1 font-medium">
+                            {dayLabels[dayIndex]}
+                          </span>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               </CardContent>

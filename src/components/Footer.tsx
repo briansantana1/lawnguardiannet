@@ -1,19 +1,8 @@
 import { Leaf, Mail, Twitter, Instagram, Youtube } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { useState } from "react";
-import { ScrollArea } from "@/components/ui/scroll-area";
 
 export function Footer() {
-  const [privacyOpen, setPrivacyOpen] = useState(false);
-  const [termsOpen, setTermsOpen] = useState(false);
-
   const handleContact = () => {
     window.location.href = "mailto:info.lawnguardian@yahoo.com";
   };
@@ -138,20 +127,20 @@ export function Footer() {
                 </a>
               </li>
               <li>
-                <button
-                  onClick={() => setPrivacyOpen(true)}
+                <Link
+                  to="/privacy"
                   className="text-lawn-400 hover:text-lawn-200 transition-colors text-sm"
                 >
                   Privacy Policy
-                </button>
+                </Link>
               </li>
               <li>
-                <button
-                  onClick={() => setTermsOpen(true)}
+                <Link
+                  to="/terms"
                   className="text-lawn-400 hover:text-lawn-200 transition-colors text-sm"
                 >
                   Terms of Use
-                </button>
+                </Link>
               </li>
               <li>
                 <button
@@ -175,128 +164,6 @@ export function Footer() {
           </p>
         </div>
       </div>
-
-      {/* Privacy Policy Dialog */}
-      <Dialog open={privacyOpen} onOpenChange={setPrivacyOpen}>
-        <DialogContent className="max-w-2xl max-h-[80vh]" aria-describedby={undefined}>
-          <DialogHeader>
-            <DialogTitle>Privacy Policy</DialogTitle>
-          </DialogHeader>
-          <ScrollArea className="h-[60vh] pr-4">
-            <div className="space-y-4 text-sm text-muted-foreground">
-              <p className="text-foreground font-medium">Last updated: January 2024</p>
-              
-              <h3 className="text-foreground font-semibold text-base">1. Information We Collect</h3>
-              <p>
-                We collect information you provide directly to us, such as when you create an account, 
-                upload lawn images for analysis, save treatment plans, or contact us for support. 
-                This may include your email address, location data for weather services, and lawn images.
-              </p>
-              
-              <h3 className="text-foreground font-semibold text-base">2. How We Use Your Information</h3>
-              <p>
-                We use the information we collect to provide, maintain, and improve our services, 
-                including AI-powered lawn analysis, personalized treatment recommendations, 
-                and location-based weather alerts.
-              </p>
-              
-              <h3 className="text-foreground font-semibold text-base">3. Information Sharing</h3>
-              <p>
-                We do not sell, trade, or otherwise transfer your personal information to outside parties. 
-                This does not include trusted third parties who assist us in operating our service, 
-                conducting our business, or serving you.
-              </p>
-              
-              <h3 className="text-foreground font-semibold text-base">4. Data Security</h3>
-              <p>
-                We implement appropriate security measures to protect your personal information. 
-                However, no method of transmission over the Internet is 100% secure.
-              </p>
-              
-              <h3 className="text-foreground font-semibold text-base">5. Your Rights</h3>
-              <p>
-                You have the right to access, update, or delete your personal information at any time 
-                by accessing your account settings or contacting us directly.
-              </p>
-              
-              <h3 className="text-foreground font-semibold text-base">6. Contact Us</h3>
-              <p>
-                If you have any questions about this Privacy Policy, please contact us at:{" "}
-                <a href="mailto:info.lawnguardian@yahoo.com" className="text-primary hover:underline">
-                  info.lawnguardian@yahoo.com
-                </a>
-              </p>
-            </div>
-          </ScrollArea>
-        </DialogContent>
-      </Dialog>
-
-      {/* Terms of Use Dialog */}
-      <Dialog open={termsOpen} onOpenChange={setTermsOpen}>
-        <DialogContent className="max-w-2xl max-h-[80vh]" aria-describedby={undefined}>
-          <DialogHeader>
-            <DialogTitle>Terms of Use</DialogTitle>
-          </DialogHeader>
-          <ScrollArea className="h-[60vh] pr-4">
-            <div className="space-y-4 text-sm text-muted-foreground">
-              <p className="text-foreground font-medium">Last updated: January 2024</p>
-              
-              <h3 className="text-foreground font-semibold text-base">1. Acceptance of Terms</h3>
-              <p>
-                By accessing and using Lawn Guardian, you accept and agree to be bound by the terms 
-                and provisions of this agreement. If you do not agree to these terms, please do not use our service.
-              </p>
-              
-              <h3 className="text-foreground font-semibold text-base">2. Description of Service</h3>
-              <p>
-                Lawn Guardian provides AI-powered lawn care diagnosis and treatment recommendations. 
-                Our service analyzes lawn images to identify diseases, insects, and weeds, 
-                and provides treatment suggestions based on best practices.
-              </p>
-              
-              <h3 className="text-foreground font-semibold text-base">3. Disclaimer</h3>
-              <p>
-                The information provided by Lawn Guardian is for educational and informational purposes only. 
-                While we strive for accuracy, we cannot guarantee that our AI diagnosis will be 100% correct. 
-                Always consult with a local lawn care professional for serious lawn issues.
-              </p>
-              
-              <h3 className="text-foreground font-semibold text-base">4. User Responsibilities</h3>
-              <p>
-                Users are responsible for following all applicable local, state, and federal regulations 
-                regarding the use of lawn care products, including pesticides and fertilizers. 
-                Always read and follow product labels carefully.
-              </p>
-              
-              <h3 className="text-foreground font-semibold text-base">5. Intellectual Property</h3>
-              <p>
-                All content, features, and functionality of Lawn Guardian are owned by us and are protected 
-                by international copyright, trademark, and other intellectual property laws.
-              </p>
-              
-              <h3 className="text-foreground font-semibold text-base">6. Limitation of Liability</h3>
-              <p>
-                Lawn Guardian shall not be liable for any indirect, incidental, special, consequential, 
-                or punitive damages resulting from your use of or inability to use the service.
-              </p>
-              
-              <h3 className="text-foreground font-semibold text-base">7. Changes to Terms</h3>
-              <p>
-                We reserve the right to modify these terms at any time. We will notify users of any 
-                material changes by posting the new terms on this page.
-              </p>
-              
-              <h3 className="text-foreground font-semibold text-base">8. Contact</h3>
-              <p>
-                For questions about these Terms of Use, contact us at:{" "}
-                <a href="mailto:info.lawnguardian@yahoo.com" className="text-primary hover:underline">
-                  info.lawnguardian@yahoo.com
-                </a>
-              </p>
-            </div>
-          </ScrollArea>
-        </DialogContent>
-      </Dialog>
     </footer>
   );
 }
