@@ -31,25 +31,48 @@ interface WeatherData {
 }
 
 serve(async (req) => {
+  console.log("schedule-notifications: Request received", req.method);
+  
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
     const authHeader = req.headers.get("Authorization");
+    console.log("schedule-notifications: Auth header present:", !!authHeader);
+    
     if (!authHeader) {
-      throw new Error("No authorization header");
+      console.error("schedule-notifications: No authorization header provided");
+      return new Response(
+        JSON.stringify({ error: "No authorization header. Please sign in." }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_ANON_KEY") ?? "",
-      { global: { headers: { Authorization: authHeader } } }
-    );
+    const supabaseUrl = Deno.env.get("SUPABASE_URL");
+    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY");
+    
+    if (!supabaseUrl || !supabaseAnonKey) {
+      console.error("schedule-notifications: Missing Supabase environment variables");
+      return new Response(
+        JSON.stringify({ error: "Server configuration error" }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: authHeader } }
+    });
 
     const { data: { user }, error: userError } = await supabase.auth.getUser();
+    console.log("schedule-notifications: User check result:", user?.id || "no user", userError?.message || "no error");
+    
     if (userError || !user) {
-      throw new Error("Unauthorized");
+      console.error("schedule-notifications: User authentication failed:", userError?.message);
+      return new Response(
+        JSON.stringify({ error: "Unauthorized. Please sign in again." }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
     const { aiAnalysis, weatherData } = await req.json() as { 
@@ -58,8 +81,14 @@ serve(async (req) => {
     };
 
     if (!aiAnalysis || !aiAnalysis.recommendations) {
-      throw new Error("Invalid AI analysis data");
+      console.error("schedule-notifications: Invalid AI analysis data received");
+      return new Response(
+        JSON.stringify({ error: "Invalid AI analysis data" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
+    
+    console.log("schedule-notifications: Processing", aiAnalysis.recommendations.length, "recommendations");
 
     const now = new Date();
     const notifications: Array<{
@@ -148,17 +177,22 @@ serve(async (req) => {
     }
 
     // Insert notifications into database
+    console.log("schedule-notifications: Inserting", notifications.length, "notifications for user", user.id);
+    
     const { data: insertedNotifications, error: insertError } = await supabase
       .from("notification_schedules")
       .insert(notifications)
       .select();
 
     if (insertError) {
-      console.error("Error inserting notifications:", insertError);
-      throw new Error("Failed to schedule notifications");
+      console.error("Error inserting notifications:", insertError.message, insertError.details);
+      return new Response(
+        JSON.stringify({ error: "Failed to save notifications: " + insertError.message }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
-    console.log(`Scheduled ${notifications.length} notifications for user ${user.id}`);
+    console.log(`Successfully scheduled ${notifications.length} notifications for user ${user.id}`);
 
     return new Response(
       JSON.stringify({ 
@@ -169,11 +203,11 @@ serve(async (req) => {
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error) {
-    console.error("schedule-notifications error:", error);
+    console.error("schedule-notifications unexpected error:", error);
     return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : "Unknown error" }),
+      JSON.stringify({ error: error instanceof Error ? error.message : "Unknown error occurred" }),
       { 
-        status: error instanceof Error && error.message === "Unauthorized" ? 401 : 500,
+        status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" } 
       }
     );
