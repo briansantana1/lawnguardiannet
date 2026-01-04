@@ -80,7 +80,11 @@ export function Profile() {
         {/* Menu Items */}
         <div className="space-y-2">
           {menuItems.map((item) => (
-            <Link key={item.label} to={item.href}>
+            <Link
+              key={item.label}
+              to={item.href}
+              state={item.href === "/contact" ? { from: "/profile" } : undefined}
+            >
               <Card variant="elevated" className="hover:shadow-lg transition-shadow cursor-pointer">
                 <CardContent className="flex items-center gap-4 py-4">
                   <div className="w-10 h-10 rounded-xl bg-muted flex items-center justify-center">
