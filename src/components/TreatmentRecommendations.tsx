@@ -1,6 +1,10 @@
-import { Check, Sparkles, Shield, Clock } from "lucide-react";
+import { useState } from "react";
+import { Check, Sparkles, Shield, Clock, MapPin, Bookmark, ExternalLink } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
 
 const treatmentExample = {
   issue: "Brown Patch Fungus",
@@ -33,6 +37,97 @@ const treatmentExample = {
 };
 
 export function TreatmentRecommendations() {
+  const [saving, setSaving] = useState(false);
+  const { toast } = useToast();
+  const { user } = useAuth();
+
+  const handleFindProducts = () => {
+    // Open Google Maps search for lawn care products nearby
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const { latitude, longitude } = position.coords;
+          const searchQuery = encodeURIComponent("lawn care products fungicide");
+          window.open(
+            `https://www.google.com/maps/search/${searchQuery}/@${latitude},${longitude},14z`,
+            "_blank"
+          );
+        },
+        () => {
+          // Fallback to general search if location denied
+          window.open(
+            "https://www.google.com/maps/search/lawn+care+products+near+me",
+            "_blank"
+          );
+        }
+      );
+    } else {
+      window.open(
+        "https://www.google.com/maps/search/lawn+care+products+near+me",
+        "_blank"
+      );
+    }
+    
+    toast({
+      title: "Finding Products",
+      description: "Opening map to find lawn care products near you.",
+    });
+  };
+
+  const handleSaveTreatmentPlan = async () => {
+    if (!user) {
+      toast({
+        title: "Sign In Required",
+        description: "Please sign in to save treatment plans.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const { error } = await supabase.from("saved_treatment_plans").insert({
+        user_id: user.id,
+        diagnosis: {
+          issue: treatmentExample.issue,
+          confidence: treatmentExample.confidence,
+          severity: treatmentExample.severity,
+        },
+        treatment_plan: {
+          cultural: treatmentExample.cultural,
+          chemical: treatmentExample.chemical,
+          prevention: treatmentExample.prevention,
+        },
+        grass_type: treatmentExample.grassType,
+        season: getCurrentSeason(),
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Treatment Plan Saved",
+        description: "Your treatment plan has been saved to your account.",
+      });
+    } catch (error) {
+      console.error("Error saving treatment plan:", error);
+      toast({
+        title: "Error",
+        description: "Failed to save treatment plan. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const getCurrentSeason = (): string => {
+    const month = new Date().getMonth();
+    if (month >= 2 && month <= 4) return "Spring";
+    if (month >= 5 && month <= 7) return "Summer";
+    if (month >= 8 && month <= 10) return "Fall";
+    return "Winter";
+  };
+
   return (
     <section className="py-20 bg-background">
       <div className="container mx-auto px-4">
@@ -167,11 +262,25 @@ export function TreatmentRecommendations() {
 
               {/* Action Buttons */}
               <div className="flex flex-col sm:flex-row gap-4 mt-8">
-                <Button variant="scan" size="lg" className="flex-1">
+                <Button 
+                  variant="scan" 
+                  size="lg" 
+                  className="flex-1"
+                  onClick={handleFindProducts}
+                >
+                  <MapPin className="w-4 h-4 mr-2" />
                   Find Products Near Me
+                  <ExternalLink className="w-4 h-4 ml-2" />
                 </Button>
-                <Button variant="outline" size="lg" className="flex-1">
-                  Save Treatment Plan
+                <Button 
+                  variant="outline" 
+                  size="lg" 
+                  className="flex-1"
+                  onClick={handleSaveTreatmentPlan}
+                  disabled={saving}
+                >
+                  <Bookmark className="w-4 h-4 mr-2" />
+                  {saving ? "Saving..." : "Save Treatment Plan"}
                 </Button>
               </div>
             </CardContent>
