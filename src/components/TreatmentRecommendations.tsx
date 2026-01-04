@@ -83,12 +83,13 @@ export function TreatmentRecommendations() {
     const searchTerm = `Home Depot Lowes garden center ${product.searchTerm}`;
     const encodedSearch = encodeURIComponent(searchTerm);
 
-    // Use the Google Maps "api=1" format + maps.google.com fallback to reduce iframe / embed blocks.
+    // Some environments (like embedded previews) block Google domains.
+    // Use OpenStreetMap search which is far less likely to be blocked.
     if (userLocation) {
-      return `https://www.google.com/maps/search/?api=1&query=${encodedSearch}&ll=${userLocation.lat},${userLocation.lng}`;
+      return `https://www.openstreetmap.org/search?query=${encodedSearch}#map=14/${userLocation.lat}/${userLocation.lng}`;
     }
 
-    return `https://maps.google.com/?q=${encodedSearch}`;
+    return `https://www.openstreetmap.org/search?query=${encodedSearch}`;
   };
 
   const selectedChemicalSearch = (selectedChemical || "").split("(")[0].trim();
