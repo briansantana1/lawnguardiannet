@@ -5,12 +5,15 @@ export interface IdentifiedIssue {
   description: string;
   symptoms: string[];
   severity: 'mild' | 'moderate' | 'severe';
+  visual_evidence?: string;
+  alternate_possibilities?: string[];
 }
 
 export interface Diagnosis {
   identified_issues: IdentifiedIssue[];
   overall_health: 'poor' | 'fair' | 'good' | 'excellent';
   affected_area_estimate: string;
+  identification_notes?: string;
 }
 
 export interface CulturalPractice {

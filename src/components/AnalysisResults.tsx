@@ -11,7 +11,10 @@ import {
   Shield,
   Clock,
   Beaker,
-  Sprout
+  Sprout,
+  ThumbsUp,
+  ThumbsDown,
+  Eye
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -19,6 +22,7 @@ import { Badge } from "@/components/ui/badge";
 import { LawnAnalysisResult, IdentifiedIssue, ChemicalTreatment } from "@/types/lawn-analysis";
 import { useState } from "react";
 import { Link } from "react-router-dom";
+import { toast } from "sonner";
 
 interface AnalysisResultsProps {
   result: LawnAnalysisResult;
@@ -68,6 +72,16 @@ const getRiskColor = (risk: string) => {
 
 const IssueCard = ({ issue }: { issue: IdentifiedIssue }) => {
   const [expanded, setExpanded] = useState(false);
+  const [feedback, setFeedback] = useState<'correct' | 'incorrect' | null>(null);
+
+  const handleFeedback = (type: 'correct' | 'incorrect') => {
+    setFeedback(type);
+    if (type === 'correct') {
+      toast.success(`Thanks! Confirmed: ${issue.name}`);
+    } else {
+      toast.info(`Thanks for the feedback! We'll improve our detection of ${issue.name}`);
+    }
+  };
 
   return (
     <Card className={`border-2 ${getSeverityColor(issue.severity)}`}>
@@ -92,10 +106,22 @@ const IssueCard = ({ issue }: { issue: IdentifiedIssue }) => {
         </div>
         
         {expanded && (
-          <div className="mt-4 pt-4 border-t border-current/10">
-            <p className="text-sm text-foreground mb-3">{issue.description}</p>
+          <div className="mt-4 pt-4 border-t border-current/10 space-y-4">
+            {/* Visual Evidence */}
+            {issue.visual_evidence && (
+              <div className="p-3 bg-blue-50 rounded-lg border border-blue-100">
+                <p className="text-xs font-semibold text-blue-700 uppercase mb-1 flex items-center gap-1">
+                  <Eye className="w-3 h-3" />
+                  Visual Evidence
+                </p>
+                <p className="text-sm text-blue-900">{issue.visual_evidence}</p>
+              </div>
+            )}
+            
+            <p className="text-sm text-foreground">{issue.description}</p>
+            
             <div>
-              <p className="text-xs font-semibold text-muted-foreground uppercase mb-2">Symptoms</p>
+              <p className="text-xs font-semibold text-muted-foreground uppercase mb-2">Symptoms Observed</p>
               <div className="flex flex-wrap gap-1">
                 {issue.symptoms.map((symptom, i) => (
                   <Badge key={i} variant="outline" className="text-xs">
@@ -103,6 +129,58 @@ const IssueCard = ({ issue }: { issue: IdentifiedIssue }) => {
                   </Badge>
                 ))}
               </div>
+            </div>
+
+            {/* Alternate possibilities */}
+            {issue.alternate_possibilities && issue.alternate_possibilities.length > 0 && (
+              <div>
+                <p className="text-xs font-semibold text-amber-600 uppercase mb-2">Could Also Be</p>
+                <div className="flex flex-wrap gap-1">
+                  {issue.alternate_possibilities.map((alt, i) => (
+                    <Badge key={i} variant="outline" className="text-xs bg-amber-50 border-amber-200 text-amber-700">
+                      {alt}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Feedback section */}
+            <div className="pt-3 border-t border-current/10">
+              <p className="text-xs font-semibold text-muted-foreground uppercase mb-2">Is this identification correct?</p>
+              <div className="flex gap-2">
+                <Button 
+                  size="sm" 
+                  variant={feedback === 'correct' ? 'default' : 'outline'}
+                  className={feedback === 'correct' ? 'bg-lawn-500 hover:bg-lawn-600' : ''}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleFeedback('correct');
+                  }}
+                  disabled={feedback !== null}
+                >
+                  <ThumbsUp className="w-4 h-4 mr-1" />
+                  Correct
+                </Button>
+                <Button 
+                  size="sm" 
+                  variant={feedback === 'incorrect' ? 'default' : 'outline'}
+                  className={feedback === 'incorrect' ? 'bg-red-500 hover:bg-red-600' : ''}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleFeedback('incorrect');
+                  }}
+                  disabled={feedback !== null}
+                >
+                  <ThumbsDown className="w-4 h-4 mr-1" />
+                  Incorrect
+                </Button>
+              </div>
+              {feedback === 'incorrect' && (
+                <p className="text-xs text-muted-foreground mt-2">
+                  Tip: Try uploading a closer, clearer photo for better results
+                </p>
+              )}
             </div>
           </div>
         )}
@@ -215,6 +293,18 @@ export function AnalysisResults({ result, imageUrl, onSave, onNewScan, isLoggedI
               </div>
             </div>
           </div>
+
+          {/* Identification Notes */}
+          {result.diagnosis.identification_notes && (
+            <Card className="mb-4 border-amber-200 bg-amber-50">
+              <CardContent className="p-4">
+                <p className="text-sm text-amber-800 flex items-start gap-2">
+                  <AlertTriangle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                  <span><strong>Note:</strong> {result.diagnosis.identification_notes}</span>
+                </p>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Identified Issues */}
           <Card className="mb-8" variant="elevated">
