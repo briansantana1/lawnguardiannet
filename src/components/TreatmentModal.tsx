@@ -5,7 +5,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Badge } from "@/components/ui/badge";
+
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
@@ -126,7 +126,7 @@ export function TreatmentModal({ issue, open, onOpenChange }: TreatmentModalProp
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto" aria-describedby={undefined}>
         <DialogHeader>
           <div className="flex items-start gap-4">
             <div className="w-14 h-14 rounded-xl bg-lawn-100 flex items-center justify-center shrink-0">
@@ -137,12 +137,12 @@ export function TreatmentModal({ issue, open, onOpenChange }: TreatmentModalProp
                 {issue.name}
               </DialogTitle>
               <div className="flex flex-wrap gap-2">
-                <Badge variant="outline" className={typeColors[issue.type]}>
+                <span className={`px-2 py-1 rounded-full text-xs font-medium border ${typeColors[issue.type]}`}>
                   {issue.type}
-                </Badge>
-                <Badge variant="outline" className={severityColors[issue.severity]}>
+                </span>
+                <span className={`px-2 py-1 rounded-full text-xs font-medium border ${severityColors[issue.severity]}`}>
                   {issue.severity} severity
-                </Badge>
+                </span>
               </div>
             </div>
           </div>
