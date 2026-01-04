@@ -1,10 +1,17 @@
-import { useState } from "react";
-import { Check, Sparkles, Shield, Clock, MapPin, Bookmark, ExternalLink } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Check, Sparkles, Shield, Clock, MapPin, Bookmark, ExternalLink, ChevronDown } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 const treatmentExample = {
   issue: "Brown Patch Fungus",
@@ -36,33 +43,50 @@ const treatmentExample = {
   ],
 };
 
+const productTypes = [
+  { value: "all", label: "All Lawn Care Products", searchTerm: "lawn care products" },
+  { value: "fungicide", label: "Fungicides", searchTerm: "lawn fungicide" },
+  { value: "fertilizer", label: "Fertilizers", searchTerm: "lawn fertilizer" },
+  { value: "weed-control", label: "Weed Control", searchTerm: "weed killer herbicide" },
+  { value: "insecticide", label: "Insecticides", searchTerm: "lawn insecticide grub control" },
+  { value: "grass-seed", label: "Grass Seed", searchTerm: "grass seed" },
+];
+
 export function TreatmentRecommendations() {
   const [saving, setSaving] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState("fungicide");
+  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
   const { toast } = useToast();
   const { user } = useAuth();
 
-  const [mapsUrl, setMapsUrl] = useState("https://www.google.com/maps/search/Home+Depot+Lowes+garden+center+nursery+lawn+care+near+me");
-
-  // Get user location for maps URL
-  const updateMapsUrl = () => {
+  // Get user location on mount
+  useEffect(() => {
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
-          const { latitude, longitude } = position.coords;
-          const searchQuery = encodeURIComponent("Home Depot Lowes garden center nursery lawn care");
-          setMapsUrl(`https://www.google.com/maps/search/${searchQuery}/@${latitude},${longitude},14z`);
+          setUserLocation({
+            lat: position.coords.latitude,
+            lng: position.coords.longitude,
+          });
         },
         () => {
-          // Keep default URL if location denied
+          // Location denied, will use default search
         }
       );
     }
-  };
+  }, []);
 
-  // Try to get location on mount
-  useState(() => {
-    updateMapsUrl();
-  });
+  // Build maps URL based on selected product and location
+  const getMapsUrl = () => {
+    const product = productTypes.find(p => p.value === selectedProduct) || productTypes[0];
+    const searchTerm = `Home Depot Lowes garden center ${product.searchTerm}`;
+    const encodedSearch = encodeURIComponent(searchTerm);
+    
+    if (userLocation) {
+      return `https://www.google.com/maps/search/${encodedSearch}/@${userLocation.lat},${userLocation.lng},14z`;
+    }
+    return `https://www.google.com/maps/search/${encodedSearch}+near+me`;
+  };
 
   const handleSaveTreatmentPlan = async () => {
     if (!user) {
@@ -251,23 +275,37 @@ export function TreatmentRecommendations() {
               </div>
 
               {/* Action Buttons */}
-              <div className="flex flex-col sm:flex-row gap-4 mt-8">
-                <Button 
-                  variant="scan" 
-                  size="lg" 
-                  className="flex-1"
-                  asChild
-                >
-                  <a href={mapsUrl} target="_blank" rel="noopener noreferrer">
-                    <MapPin className="w-4 h-4 mr-2" />
-                    Find Products Near Me
-                    <ExternalLink className="w-4 h-4 ml-2" />
-                  </a>
-                </Button>
+              <div className="flex flex-col gap-4 mt-8">
+                <div className="flex flex-col sm:flex-row gap-4 items-stretch">
+                  <Select value={selectedProduct} onValueChange={setSelectedProduct}>
+                    <SelectTrigger className="sm:w-[200px] bg-card">
+                      <SelectValue placeholder="Select product type" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-card z-50">
+                      {productTypes.map((product) => (
+                        <SelectItem key={product.value} value={product.value}>
+                          {product.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Button 
+                    variant="scan" 
+                    size="lg" 
+                    className="flex-1"
+                    asChild
+                  >
+                    <a href={getMapsUrl()} target="_blank" rel="noopener noreferrer">
+                      <MapPin className="w-4 h-4 mr-2" />
+                      Find Products Near Me
+                      <ExternalLink className="w-4 h-4 ml-2" />
+                    </a>
+                  </Button>
+                </div>
                 <Button 
                   variant="outline" 
                   size="lg" 
-                  className="flex-1"
+                  className="w-full sm:w-auto"
                   onClick={handleSaveTreatmentPlan}
                   disabled={saving}
                 >
