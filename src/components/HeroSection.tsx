@@ -1,7 +1,6 @@
 import { Camera, ArrowRight, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import heroLawn from "@/assets/hero-lawn.jpg";
-import mascot from "@/assets/mascot.png";
 
 export function HeroSection() {
   return (
@@ -25,14 +24,6 @@ export function HeroSection() {
             AI-Powered Lawn Care
           </div>
 
-          {/* Mascot */}
-          <div className="relative w-48 h-48 mx-auto mb-8">
-            <img
-              src={mascot}
-              alt="Lawn Guardian Mascot"
-              className="w-full h-full object-contain drop-shadow-2xl"
-            />
-          </div>
 
           {/* Headline */}
           <h1 className="font-heading text-4xl md:text-6xl font-bold text-foreground mb-6 animate-slide-up">
