@@ -110,31 +110,44 @@ serve(async (req) => {
     const results: ProductResult[] = [];
     const processedRetailers = new Set<string>();
 
+    const retailerDomains: Record<string, string[]> = {
+      "Home Depot": ["homedepot.com"],
+      "Lowe's": ["lowes.com"],
+      "Amazon": ["amazon.com"],
+      "Ace Hardware": ["acehardware.com"],
+    };
+
+    const extractPrice = (text: string) => {
+      const match = text.match(/\$\s?[\d,]+(?:\.[\d]{2})?/);
+      return match ? match[0].replace(/\s+/g, "") : null;
+    };
+
+    const matchesRetailer = (url: string, retailerName: string) => {
+      const domains = retailerDomains[retailerName] || [];
+      return domains.some((d) => url.includes(d));
+    };
+
     // Try to match search results to our known retailers
     for (const result of searchData.data || []) {
-      const url = result.url?.toLowerCase() || '';
-      
+      const url = (result.url || "").toLowerCase();
+
       for (const retailer of retailers) {
-        const retailerDomain = retailer.name.toLowerCase().replace(/['\s]/g, '');
-        
-        if (url.includes(retailerDomain) || url.includes(retailerDomain.replace(' ', ''))) {
-          if (!processedRetailers.has(retailer.name)) {
-            processedRetailers.add(retailer.name);
-            
-            // Try to extract price from markdown content
-            const markdown = result.markdown || '';
-            const priceMatch = markdown.match(/\$[\d,]+\.?\d*/);
-            
-            results.push({
-              retailer: retailer.name,
-              productName: result.title || productName,
-              price: priceMatch ? priceMatch[0] : null,
-              url: result.url || retailer.searchUrl(searchQuery),
-              available: true,
-              logo: (retailer as any).logo
-            });
-          }
-        }
+        if (processedRetailers.has(retailer.name)) continue;
+        if (!matchesRetailer(url, retailer.name)) continue;
+
+        const markdown = result.markdown || "";
+        const description = result.description || "";
+        const price = extractPrice(markdown) || extractPrice(description);
+
+        processedRetailers.add(retailer.name);
+        results.push({
+          retailer: retailer.name,
+          productName: result.title || productName,
+          price,
+          url: result.url || retailer.searchUrl(searchQuery),
+          available: Boolean(price),
+          logo: (retailer as any).logo,
+        });
       }
     }
 
