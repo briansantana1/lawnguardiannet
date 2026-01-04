@@ -13,6 +13,7 @@ interface ProductResult {
   available: boolean;
   error?: string;
   logo?: string;
+  priceSource?: string; // "live" | "search" | "link"
 }
 
 const retailers = [
@@ -37,6 +38,83 @@ const retailers = [
     logo: "🔨"
   }
 ];
+
+const retailerDomains: Record<string, string[]> = {
+  "Home Depot": ["homedepot.com"],
+  "Lowe's": ["lowes.com"],
+  "Amazon": ["amazon.com"],
+  "Ace Hardware": ["acehardware.com"],
+};
+
+// Extract price from text - improved regex to find product prices
+const extractPrice = (text: string): string | null => {
+  // Look for common price patterns, prefer prices that look like product prices ($XX.XX)
+  const patterns = [
+    /\$\d{1,3}(?:,\d{3})*\.\d{2}/g, // $39.99, $1,299.99
+    /\$\d{1,3}(?:,\d{3})*/g, // $39, $1,299
+  ];
+  
+  for (const pattern of patterns) {
+    const matches = text.match(pattern);
+    if (matches && matches.length > 0) {
+      // Filter out very small prices (likely shipping) and very large prices (likely bundles)
+      const validPrices = matches.filter(p => {
+        const num = parseFloat(p.replace(/[$,]/g, ''));
+        return num >= 10 && num <= 500; // Reasonable range for lawn products
+      });
+      if (validPrices.length > 0) {
+        return validPrices[0];
+      }
+      // If no prices in range, return first match
+      return matches[0];
+    }
+  }
+  return null;
+};
+
+const matchesRetailer = (url: string, retailerName: string): boolean => {
+  const domains = retailerDomains[retailerName] || [];
+  return domains.some((d) => url.toLowerCase().includes(d));
+};
+
+// Scrape a specific product page directly for accurate pricing
+const scrapeProductPage = async (url: string, apiKey: string): Promise<{ price: string | null; title: string | null }> => {
+  try {
+    console.log(`Scraping product page: ${url}`);
+    
+    const response = await fetch('https://api.firecrawl.dev/v1/scrape', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        url,
+        formats: ['markdown'],
+        onlyMainContent: true,
+        waitFor: 2000, // Wait for dynamic content
+      }),
+    });
+
+    if (!response.ok) {
+      console.log(`Failed to scrape ${url}: ${response.status}`);
+      return { price: null, title: null };
+    }
+
+    const data = await response.json();
+    const markdown = data.data?.markdown || data.markdown || '';
+    const metadata = data.data?.metadata || data.metadata || {};
+    
+    const price = extractPrice(markdown);
+    const title = metadata.title || null;
+    
+    console.log(`Scraped price from ${url}: ${price}`);
+    return { price, title };
+  } catch (error) {
+    console.error(`Error scraping ${url}:`, error);
+    return { price: null, title: null };
+  }
+};
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -64,10 +142,10 @@ serve(async (req) => {
 
     console.log(`Searching for prices: ${productName} (${productType})`);
 
-    // Build search query
-    const searchQuery = `${productName} lawn ${productType || ''}`.trim();
+    // Build search query - be specific about the product
+    const searchQuery = `${productName} lawn ${productType || ''} buy price`.trim();
 
-    // Use Firecrawl search to find product information
+    // Use Firecrawl search to find product pages
     const searchResponse = await fetch('https://api.firecrawl.dev/v1/search', {
       method: 'POST',
       headers: {
@@ -75,8 +153,8 @@ serve(async (req) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        query: `${searchQuery} price buy`,
-        limit: 10,
+        query: searchQuery,
+        limit: 15,
         scrapeOptions: {
           formats: ['markdown']
         }
@@ -95,77 +173,125 @@ serve(async (req) => {
             retailer: r.name,
             productName: productName,
             price: null,
-            url: r.searchUrl(searchQuery),
+            url: r.searchUrl(productName),
             available: false,
-            logo: r.logo
+            logo: r.logo,
+            priceSource: 'link'
           }))
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    console.log('Search results received:', searchData);
+    console.log(`Search returned ${searchData.data?.length || 0} results`);
 
-    // Parse results to extract price information
-    const results: ProductResult[] = [];
-    const processedRetailers = new Set<string>();
-
-    const retailerDomains: Record<string, string[]> = {
-      "Home Depot": ["homedepot.com"],
-      "Lowe's": ["lowes.com"],
-      "Amazon": ["amazon.com"],
-      "Ace Hardware": ["acehardware.com"],
-    };
-
-    const extractPrice = (text: string) => {
-      const match = text.match(/\$\s?[\d,]+(?:\.[\d]{2})?/);
-      return match ? match[0].replace(/\s+/g, "") : null;
-    };
-
-    const matchesRetailer = (url: string, retailerName: string) => {
-      const domains = retailerDomains[retailerName] || [];
-      return domains.some((d) => url.includes(d));
-    };
-
-    // Try to match search results to our known retailers
+    // Collect retailer product URLs from search results
+    const retailerUrls: Record<string, { url: string; title: string; searchPrice: string | null }> = {};
+    
     for (const result of searchData.data || []) {
-      const url = (result.url || "").toLowerCase();
-
+      const url = result.url || '';
+      
       for (const retailer of retailers) {
-        if (processedRetailers.has(retailer.name)) continue;
+        if (retailerUrls[retailer.name]) continue;
         if (!matchesRetailer(url, retailer.name)) continue;
-
-        const markdown = result.markdown || "";
-        const description = result.description || "";
-        const price = extractPrice(markdown) || extractPrice(description);
-
-        processedRetailers.add(retailer.name);
-        results.push({
-          retailer: retailer.name,
-          productName: result.title || productName,
-          price,
-          url: result.url || retailer.searchUrl(searchQuery),
-          available: Boolean(price),
-          logo: (retailer as any).logo,
-        });
+        
+        // Check if this is a product page (not a search/category page)
+        const isProductPage = 
+          (retailer.name === 'Amazon' && url.includes('/dp/')) ||
+          (retailer.name === 'Home Depot' && url.includes('/p/')) ||
+          (retailer.name === "Lowe's" && url.includes('/pd/')) ||
+          (retailer.name === 'Ace Hardware' && url.includes('/product/'));
+        
+        const markdown = result.markdown || '';
+        const description = result.description || '';
+        const searchPrice = extractPrice(markdown) || extractPrice(description);
+        
+        retailerUrls[retailer.name] = {
+          url,
+          title: result.title || productName,
+          searchPrice
+        };
+        
+        console.log(`Found ${retailer.name} URL: ${url} (product page: ${isProductPage}, search price: ${searchPrice})`);
       }
     }
 
-    // Add fallback links for retailers not found in search results
+    // For each retailer with a product page URL, scrape directly for accurate price
+    const results: ProductResult[] = [];
+    const scrapePromises: Promise<void>[] = [];
+    
     for (const retailer of retailers) {
-      if (!processedRetailers.has(retailer.name)) {
+      const urlInfo = retailerUrls[retailer.name];
+      
+      if (urlInfo) {
+        // Check if it's a product page worth scraping
+        const url = urlInfo.url;
+        const isProductPage = 
+          (retailer.name === 'Amazon' && url.includes('/dp/')) ||
+          (retailer.name === 'Home Depot' && url.includes('/p/')) ||
+          (retailer.name === "Lowe's" && url.includes('/pd/')) ||
+          (retailer.name === 'Ace Hardware' && url.includes('/product/'));
+        
+        if (isProductPage && !urlInfo.searchPrice) {
+          // Scrape the product page for accurate price
+          const scrapePromise = scrapeProductPage(url, apiKey).then(({ price, title }) => {
+            results.push({
+              retailer: retailer.name,
+              productName: title || urlInfo.title,
+              price: price,
+              url: url,
+              available: Boolean(price),
+              logo: retailer.logo,
+              priceSource: price ? 'live' : 'link'
+            });
+          });
+          scrapePromises.push(scrapePromise);
+        } else {
+          // Use the price from search results
+          results.push({
+            retailer: retailer.name,
+            productName: urlInfo.title,
+            price: urlInfo.searchPrice,
+            url: urlInfo.url,
+            available: Boolean(urlInfo.searchPrice),
+            logo: retailer.logo,
+            priceSource: urlInfo.searchPrice ? 'search' : 'link'
+          });
+        }
+      } else {
+        // No URL found, provide direct search link
         results.push({
           retailer: retailer.name,
           productName: productName,
           price: null,
-          url: retailer.searchUrl(searchQuery),
+          url: retailer.searchUrl(productName),
           available: false,
-          logo: (retailer as any).logo
+          logo: retailer.logo,
+          priceSource: 'link'
         });
       }
     }
 
-    console.log('Processed results:', results);
+    // Wait for all scrape operations to complete
+    await Promise.all(scrapePromises);
+
+    // Ensure all retailers are in results
+    const resultRetailers = new Set(results.map(r => r.retailer));
+    for (const retailer of retailers) {
+      if (!resultRetailers.has(retailer.name)) {
+        results.push({
+          retailer: retailer.name,
+          productName: productName,
+          price: null,
+          url: retailer.searchUrl(productName),
+          available: false,
+          logo: retailer.logo,
+          priceSource: 'link'
+        });
+      }
+    }
+
+    console.log('Final results:', results.map(r => ({ retailer: r.retailer, price: r.price, source: r.priceSource })));
 
     return new Response(
       JSON.stringify({ 
@@ -189,7 +315,8 @@ serve(async (req) => {
           price: null,
           url: r.searchUrl('lawn care'),
           available: false,
-          logo: r.logo
+          logo: r.logo,
+          priceSource: 'link'
         }))
       }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
