@@ -143,12 +143,12 @@ export function Footer() {
                 </Link>
               </li>
               <li>
-                <button
-                  onClick={handleContact}
+                <Link
+                  to="/contact"
                   className="text-lawn-400 hover:text-lawn-200 transition-colors text-sm"
                 >
                   Contact
-                </button>
+                </Link>
               </li>
             </ul>
           </div>
