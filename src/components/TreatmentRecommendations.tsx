@@ -83,13 +83,32 @@ export function TreatmentRecommendations() {
     const searchTerm = `Home Depot Lowes garden center ${product.searchTerm}`;
     const encodedSearch = encodeURIComponent(searchTerm);
 
-    // Some environments (like embedded previews) block Google domains.
-    // Use OpenStreetMap search which is far less likely to be blocked.
+    // In embedded previews, some sites may refuse to open inside the iframe.
+    // We'll open links via window.open (see handler below).
     if (userLocation) {
       return `https://www.openstreetmap.org/search?query=${encodedSearch}#map=14/${userLocation.lat}/${userLocation.lng}`;
     }
 
     return `https://www.openstreetmap.org/search?query=${encodedSearch}`;
+  };
+
+  const openExternal = async (url: string) => {
+    const opened = window.open(url, "_blank", "noopener,noreferrer");
+    if (!opened) {
+      try {
+        await navigator.clipboard.writeText(url);
+        toast({
+          title: "Pop-up blocked",
+          description: "We copied the link to your clipboard—paste it into a new tab.",
+        });
+      } catch {
+        toast({
+          title: "Pop-up blocked",
+          description: "Please allow pop-ups for this site to open store links.",
+          variant: "destructive",
+        });
+      }
+    }
   };
 
   const selectedChemicalSearch = (selectedChemical || "").split("(")[0].trim();
@@ -307,17 +326,15 @@ export function TreatmentRecommendations() {
                       ))}
                     </SelectContent>
                   </Select>
-                  <Button 
-                    variant="scan" 
-                    size="lg" 
+                  <Button
+                    variant="scan"
+                    size="lg"
                     className="flex-1"
-                    asChild
+                    onClick={() => void openExternal(getMapsUrl())}
                   >
-                    <a href={getMapsUrl()} target="_blank" rel="noopener noreferrer">
-                      <MapPin className="w-4 h-4 mr-2" />
-                      Find Products Near Me
-                      <ExternalLink className="w-4 h-4 ml-2" />
-                    </a>
+                    <MapPin className="w-4 h-4 mr-2" />
+                    Find Products Near Me
+                    <ExternalLink className="w-4 h-4 ml-2" />
                   </Button>
                 </div>
                 <Button 
