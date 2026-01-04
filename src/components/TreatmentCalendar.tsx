@@ -1,14 +1,16 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { Calendar } from "@/components/ui/calendar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { CalendarDays, Plus, Droplets, Leaf, Edit2, Trash2 } from "lucide-react";
+import { CalendarDays, Plus, Droplets, Leaf, Edit2, Trash2, Bell, BellRing, Undo2 } from "lucide-react";
 import { format, isSameDay } from "date-fns";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 
 interface JournalEntry {
   id: string;
@@ -16,13 +18,24 @@ interface JournalEntry {
   product: string;
   notes: string;
   nextApplicationDate?: Date;
+  notificationEnabled?: boolean;
+}
+
+interface UndoState {
+  type: "delete" | "edit";
+  entry: JournalEntry;
+  previousEntry?: JournalEntry;
 }
 
 export function TreatmentCalendar() {
+  const { user } = useAuth();
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
   const [entries, setEntries] = useState<JournalEntry[]>([]);
   const [isAddingEntry, setIsAddingEntry] = useState(false);
   const [editingEntry, setEditingEntry] = useState<JournalEntry | null>(null);
+  const [deleteConfirmEntry, setDeleteConfirmEntry] = useState<JournalEntry | null>(null);
+  const [undoState, setUndoState] = useState<UndoState | null>(null);
+  const [schedulingNotification, setSchedulingNotification] = useState<string | null>(null);
   const [newEntry, setNewEntry] = useState({
     product: "",
     notes: "",
@@ -52,6 +65,7 @@ export function TreatmentCalendar() {
       nextApplicationDate: newEntry.nextApplicationDate
         ? new Date(newEntry.nextApplicationDate)
         : undefined,
+      notificationEnabled: false,
     };
 
     setEntries([...entries, entry]);
@@ -63,28 +77,192 @@ export function TreatmentCalendar() {
   const handleUpdateEntry = () => {
     if (!editingEntry) return;
 
+    const previousEntry = entries.find((e) => e.id === editingEntry.id);
+    const updatedEntry = {
+      ...editingEntry,
+      product: newEntry.product.trim() || editingEntry.product,
+      notes: newEntry.notes.trim(),
+      nextApplicationDate: newEntry.nextApplicationDate
+        ? new Date(newEntry.nextApplicationDate)
+        : editingEntry.nextApplicationDate,
+    };
+
     setEntries(
-      entries.map((e) =>
-        e.id === editingEntry.id
-          ? {
-              ...editingEntry,
-              product: newEntry.product.trim() || editingEntry.product,
-              notes: newEntry.notes.trim(),
-              nextApplicationDate: newEntry.nextApplicationDate
-                ? new Date(newEntry.nextApplicationDate)
-                : editingEntry.nextApplicationDate,
-            }
-          : e
-      )
+      entries.map((e) => (e.id === editingEntry.id ? updatedEntry : e))
     );
+
+    // Save undo state
+    if (previousEntry) {
+      setUndoState({
+        type: "edit",
+        entry: updatedEntry,
+        previousEntry: { ...previousEntry },
+      });
+
+      toast.success("Entry updated!", {
+        action: {
+          label: "Undo",
+          onClick: () => handleUndo(),
+        },
+        duration: 5000,
+      });
+    }
+
     setEditingEntry(null);
     setNewEntry({ product: "", notes: "", nextApplicationDate: "" });
-    toast.success("Entry updated!");
   };
 
-  const handleDeleteEntry = (id: string) => {
-    setEntries(entries.filter((e) => e.id !== id));
-    toast.success("Entry deleted");
+  const handleDeleteEntry = (entry: JournalEntry) => {
+    setDeleteConfirmEntry(entry);
+  };
+
+  const confirmDelete = () => {
+    if (!deleteConfirmEntry) return;
+
+    const deletedEntry = { ...deleteConfirmEntry };
+    setEntries(entries.filter((e) => e.id !== deleteConfirmEntry.id));
+    setDeleteConfirmEntry(null);
+
+    // Save undo state
+    setUndoState({
+      type: "delete",
+      entry: deletedEntry,
+    });
+
+    toast.success("Entry deleted", {
+      action: {
+        label: "Undo",
+        onClick: () => handleUndo(),
+      },
+      duration: 5000,
+    });
+  };
+
+  const handleUndo = useCallback(() => {
+    if (!undoState) return;
+
+    if (undoState.type === "delete") {
+      // Restore deleted entry
+      setEntries((prev) => [...prev, undoState.entry]);
+      toast.success("Entry restored!");
+    } else if (undoState.type === "edit" && undoState.previousEntry) {
+      // Restore previous version
+      setEntries((prev) =>
+        prev.map((e) =>
+          e.id === undoState.entry.id ? undoState.previousEntry! : e
+        )
+      );
+      toast.success("Changes reverted!");
+    }
+
+    setUndoState(null);
+  }, [undoState]);
+
+  const handleScheduleNotification = async (entry: JournalEntry) => {
+    if (!user) {
+      toast.error("Please sign in to enable notifications");
+      return;
+    }
+
+    if (!entry.nextApplicationDate) {
+      toast.error("No next application date set for this treatment");
+      return;
+    }
+
+    setSchedulingNotification(entry.id);
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        toast.error("Please sign in to enable notifications");
+        return;
+      }
+
+      // Schedule a notification for the day before the treatment
+      const reminderDate = new Date(entry.nextApplicationDate);
+      reminderDate.setDate(reminderDate.getDate() - 1);
+      reminderDate.setHours(9, 0, 0, 0);
+
+      const { error } = await supabase.from("notification_schedules").insert({
+        user_id: user.id,
+        title: `🌿 Treatment Reminder: ${entry.product}`,
+        message: `Tomorrow is your scheduled treatment day for ${entry.product}. ${entry.notes ? `Notes: ${entry.notes}` : ""}`,
+        category: "treatment_reminder",
+        priority: "medium",
+        scheduled_for: reminderDate.toISOString(),
+        weather_context: {
+          product: entry.product,
+          applicationDate: entry.nextApplicationDate.toISOString(),
+          notes: entry.notes,
+        },
+      });
+
+      if (error) throw error;
+
+      // Also schedule a notification for the day of
+      const dayOfDate = new Date(entry.nextApplicationDate);
+      dayOfDate.setHours(8, 0, 0, 0);
+
+      await supabase.from("notification_schedules").insert({
+        user_id: user.id,
+        title: `🌿 Today: Apply ${entry.product}`,
+        message: `Today is your scheduled treatment day! Apply ${entry.product}. ${entry.notes ? `Notes: ${entry.notes}` : ""}`,
+        category: "treatment_reminder",
+        priority: "high",
+        scheduled_for: dayOfDate.toISOString(),
+        weather_context: {
+          product: entry.product,
+          applicationDate: entry.nextApplicationDate.toISOString(),
+          notes: entry.notes,
+        },
+      });
+
+      // Update entry to show notification is enabled
+      setEntries((prev) =>
+        prev.map((e) =>
+          e.id === entry.id ? { ...e, notificationEnabled: true } : e
+        )
+      );
+
+      toast.success("Smart notification scheduled!", {
+        description: `You'll be reminded on ${format(reminderDate, "MMM d")} and ${format(dayOfDate, "MMM d")}`,
+      });
+    } catch (error) {
+      console.error("Error scheduling notification:", error);
+      toast.error("Failed to schedule notification");
+    } finally {
+      setSchedulingNotification(null);
+    }
+  };
+
+  const handleEnableAllNotifications = async () => {
+    if (!user) {
+      toast.error("Please sign in to enable notifications");
+      return;
+    }
+
+    const treatmentsWithDates = entries.filter(
+      (e) => e.nextApplicationDate && e.nextApplicationDate >= new Date() && !e.notificationEnabled
+    );
+
+    if (treatmentsWithDates.length === 0) {
+      toast.info("No upcoming treatments to schedule notifications for");
+      return;
+    }
+
+    let successCount = 0;
+    for (const entry of treatmentsWithDates) {
+      try {
+        await handleScheduleNotification(entry);
+        successCount++;
+      } catch {
+        console.error("Failed to schedule for", entry.product);
+      }
+    }
+
+    if (successCount > 0) {
+      toast.success(`Enabled notifications for ${successCount} treatments`);
+    }
   };
 
   const datesWithEntries = entries.map((e) => e.date);
@@ -156,10 +334,24 @@ export function TreatmentCalendar() {
           {/* Upcoming Treatments */}
           <Card variant="elevated">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <Droplets className="w-5 h-5 text-primary" />
-                Upcoming Treatments
-              </CardTitle>
+              <div className="flex items-center justify-between">
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <Droplets className="w-5 h-5 text-primary" />
+                  Upcoming Treatments
+                </CardTitle>
+                {upcomingTreatments.length > 0 && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleEnableAllNotifications}
+                    className="text-xs"
+                    disabled={!user}
+                  >
+                    <BellRing className="w-3 h-3 mr-1" />
+                    Enable All
+                  </Button>
+                )}
+              </div>
             </CardHeader>
             <CardContent>
               {upcomingTreatments.length > 0 ? (
@@ -169,10 +361,105 @@ export function TreatmentCalendar() {
                       key={entry.id}
                       className="p-3 rounded-xl bg-lawn-100 border border-lawn-200"
                     >
-                      <p className="font-medium text-foreground text-sm">{entry.product}</p>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        {format(entry.nextApplicationDate!, "MMM d, yyyy")}
-                      </p>
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium text-foreground text-sm truncate">
+                            {entry.product}
+                          </p>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            {format(entry.nextApplicationDate!, "MMM d, yyyy")}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-1 shrink-0">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 w-7 p-0"
+                            onClick={() => handleScheduleNotification(entry)}
+                            disabled={schedulingNotification === entry.id || entry.notificationEnabled}
+                            title={entry.notificationEnabled ? "Notification enabled" : "Schedule notification"}
+                          >
+                            {entry.notificationEnabled ? (
+                              <BellRing className="w-3.5 h-3.5 text-primary" />
+                            ) : (
+                              <Bell className="w-3.5 h-3.5" />
+                            )}
+                          </Button>
+                          <Dialog
+                            open={editingEntry?.id === entry.id}
+                            onOpenChange={(open) => {
+                              if (open) {
+                                setEditingEntry(entry);
+                                setNewEntry({
+                                  product: entry.product,
+                                  notes: entry.notes,
+                                  nextApplicationDate: entry.nextApplicationDate
+                                    ? format(entry.nextApplicationDate, "yyyy-MM-dd")
+                                    : "",
+                                });
+                              } else {
+                                setEditingEntry(null);
+                                setNewEntry({ product: "", notes: "", nextApplicationDate: "" });
+                              }
+                            }}
+                          >
+                            <DialogTrigger asChild>
+                              <Button variant="ghost" size="sm" className="h-7 w-7 p-0">
+                                <Edit2 className="w-3.5 h-3.5" />
+                              </Button>
+                            </DialogTrigger>
+                            <DialogContent>
+                              <DialogHeader>
+                                <DialogTitle>Edit Treatment</DialogTitle>
+                              </DialogHeader>
+                              <div className="space-y-4 mt-4">
+                                <div>
+                                  <Label htmlFor="edit-upcoming-product">Product Applied</Label>
+                                  <Input
+                                    id="edit-upcoming-product"
+                                    value={newEntry.product}
+                                    onChange={(e) =>
+                                      setNewEntry({ ...newEntry, product: e.target.value })
+                                    }
+                                  />
+                                </div>
+                                <div>
+                                  <Label htmlFor="edit-upcoming-notes">Notes</Label>
+                                  <Textarea
+                                    id="edit-upcoming-notes"
+                                    value={newEntry.notes}
+                                    onChange={(e) =>
+                                      setNewEntry({ ...newEntry, notes: e.target.value })
+                                    }
+                                  />
+                                </div>
+                                <div>
+                                  <Label htmlFor="edit-upcoming-nextDate">Next Application Date</Label>
+                                  <Input
+                                    id="edit-upcoming-nextDate"
+                                    type="date"
+                                    value={newEntry.nextApplicationDate}
+                                    onChange={(e) =>
+                                      setNewEntry({ ...newEntry, nextApplicationDate: e.target.value })
+                                    }
+                                  />
+                                </div>
+                                <Button onClick={handleUpdateEntry} variant="scan" className="w-full">
+                                  Update Entry
+                                </Button>
+                              </div>
+                            </DialogContent>
+                          </Dialog>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 w-7 p-0"
+                            onClick={() => handleDeleteEntry(entry)}
+                          >
+                            <Trash2 className="w-3.5 h-3.5 text-destructive" />
+                          </Button>
+                        </div>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -266,6 +553,21 @@ export function TreatmentCalendar() {
                           )}
                         </div>
                         <div className="flex gap-2">
+                          {entry.nextApplicationDate && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleScheduleNotification(entry)}
+                              disabled={schedulingNotification === entry.id || entry.notificationEnabled}
+                              title={entry.notificationEnabled ? "Notification enabled" : "Schedule notification"}
+                            >
+                              {entry.notificationEnabled ? (
+                                <BellRing className="w-4 h-4 text-primary" />
+                              ) : (
+                                <Bell className="w-4 h-4" />
+                              )}
+                            </Button>
+                          )}
                           <Dialog
                             open={editingEntry?.id === entry.id}
                             onOpenChange={(open) => {
@@ -334,7 +636,7 @@ export function TreatmentCalendar() {
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => handleDeleteEntry(entry.id)}
+                            onClick={() => handleDeleteEntry(entry)}
                           >
                             <Trash2 className="w-4 h-4 text-destructive" />
                           </Button>
@@ -355,6 +657,26 @@ export function TreatmentCalendar() {
             </CardContent>
           </Card>
         )}
+
+        {/* Delete Confirmation Dialog */}
+        <Dialog open={!!deleteConfirmEntry} onOpenChange={(open) => !open && setDeleteConfirmEntry(null)}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Delete Treatment Entry?</DialogTitle>
+              <DialogDescription>
+                Are you sure you want to delete "{deleteConfirmEntry?.product}"? This action can be undone.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter className="gap-2 sm:gap-0">
+              <Button variant="outline" onClick={() => setDeleteConfirmEntry(null)}>
+                Cancel
+              </Button>
+              <Button variant="destructive" onClick={confirmDelete}>
+                Delete
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </section>
   );
