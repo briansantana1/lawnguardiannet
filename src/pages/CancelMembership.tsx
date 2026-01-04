@@ -87,11 +87,7 @@ export function CancelMembership() {
               <ul className="space-y-2 text-sm text-muted-foreground">
                 <li className="flex items-center gap-2">
                   <XCircle className="w-4 h-4 text-destructive" />
-                  Lose access to unlimited scans and diagnoses
-                </li>
-                <li className="flex items-center gap-2">
-                  <XCircle className="w-4 h-4 text-destructive" />
-                  Lose access to treatment plans
+                  Lose access to your scans, diagnoses, and treatment plans
                 </li>
                 <li className="flex items-center gap-2">
                   <XCircle className="w-4 h-4 text-destructive" />
