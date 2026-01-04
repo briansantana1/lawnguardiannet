@@ -19,6 +19,9 @@ import {
   AlertTriangle,
   Lightbulb,
   Info,
+  Calendar,
+  Check,
+  Clock,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -32,6 +35,9 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface WeatherData {
   location: string;
@@ -67,6 +73,18 @@ interface AIAnalysis {
   alerts: AIAlert[];
 }
 
+interface ScheduledNotification {
+  id: string;
+  title: string;
+  message: string;
+  category: string;
+  priority: string;
+  scheduled_for: string;
+  sent_at: string | null;
+  is_read: boolean;
+  created_at: string;
+}
+
 const defaultWeatherData: WeatherData = {
   location: "Loading...",
   temp: 0,
@@ -84,12 +102,15 @@ const severityStyles = {
   low: "border-l-lawn-500 bg-lawn-50",
 };
 
-const categoryIcons = {
+const categoryIcons: Record<string, React.ElementType> = {
   watering: Droplet,
   mowing: Scissors,
   disease: Bug,
   fertilizing: Leaf,
   general: Info,
+  warning: AlertTriangle,
+  caution: AlertCircle,
+  tip: Lightbulb,
 };
 
 const alertTypeStyles = {
@@ -112,6 +133,8 @@ export function WeatherAlerts() {
   const [aiLoading, setAiLoading] = useState(false);
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
   const [manageDialogOpen, setManageDialogOpen] = useState(false);
+  const [scheduledNotifications, setScheduledNotifications] = useState<ScheduledNotification[]>([]);
+  const [schedulingNotifications, setSchedulingNotifications] = useState(false);
   const [notificationSettings, setNotificationSettings] = useState({
     diseaseAlerts: true,
     insectAlerts: true,
@@ -119,6 +142,29 @@ export function WeatherAlerts() {
     treatmentReminders: true,
   });
   const { toast } = useToast();
+  const { user } = useAuth();
+
+  // Fetch scheduled notifications
+  const fetchScheduledNotifications = async () => {
+    if (!user) return;
+    
+    const { data, error } = await supabase
+      .from("notification_schedules")
+      .select("*")
+      .eq("user_id", user.id)
+      .order("scheduled_for", { ascending: true })
+      .limit(20);
+
+    if (!error && data) {
+      setScheduledNotifications(data);
+    }
+  };
+
+  useEffect(() => {
+    if (user) {
+      fetchScheduledNotifications();
+    }
+  }, [user]);
 
   // Fetch AI analysis when weather data is loaded
   const fetchAIAnalysis = async (weather: WeatherData) => {
@@ -147,6 +193,55 @@ export function WeatherAlerts() {
       console.error("Failed to fetch AI analysis:", error);
     } finally {
       setAiLoading(false);
+    }
+  };
+
+  // Schedule notifications based on AI analysis
+  const handleScheduleNotifications = async () => {
+    if (!user) {
+      toast({
+        title: "Sign In Required",
+        description: "Please sign in to schedule notifications.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!aiAnalysis) {
+      toast({
+        title: "No Analysis Available",
+        description: "Wait for AI analysis to complete first.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setSchedulingNotifications(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("schedule-notifications", {
+        body: { aiAnalysis, weatherData },
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      toast({
+        title: "Notifications Scheduled",
+        description: `${data.scheduledCount} smart notifications have been scheduled based on current conditions.`,
+      });
+
+      // Refresh the notifications list
+      fetchScheduledNotifications();
+    } catch (error) {
+      console.error("Failed to schedule notifications:", error);
+      toast({
+        title: "Scheduling Failed",
+        description: "Could not schedule notifications. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setSchedulingNotifications(false);
     }
   };
 
@@ -185,7 +280,6 @@ export function WeatherAlerts() {
         setSoilTempData({ temps: dailySoilTemps, loading: false });
         setLoading(false);
         
-        // Fetch AI analysis after weather data is loaded
         fetchAIAnalysis(newWeatherData);
       } catch (error) {
         console.error("Error fetching weather data:", error);
@@ -269,6 +363,37 @@ export function WeatherAlerts() {
     });
   };
 
+  const markNotificationAsRead = async (notificationId: string) => {
+    const { error } = await supabase
+      .from("notification_schedules")
+      .update({ is_read: true })
+      .eq("id", notificationId);
+
+    if (!error) {
+      setScheduledNotifications(prev => 
+        prev.map(n => n.id === notificationId ? { ...n, is_read: true } : n)
+      );
+    }
+  };
+
+  const formatScheduledTime = (dateStr: string) => {
+    const date = new Date(dateStr);
+    const now = new Date();
+    const diffMs = date.getTime() - now.getTime();
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+    if (diffMs < 0) {
+      return "Past due";
+    } else if (diffHours < 1) {
+      return "Less than 1 hour";
+    } else if (diffHours < 24) {
+      return `In ${diffHours} hour${diffHours > 1 ? 's' : ''}`;
+    } else {
+      return `In ${diffDays} day${diffDays > 1 ? 's' : ''}`;
+    }
+  };
+
   const displaySoilTemps = soilTempData.loading ? [58, 62, 68, 72, 74, 73, 70] : soilTempData.temps;
   const minTemp = Math.min(...displaySoilTemps);
   const maxTemp = Math.max(...displaySoilTemps);
@@ -278,6 +403,8 @@ export function WeatherAlerts() {
     medium: "bg-warning",
     high: "bg-alert",
   };
+
+  const upcomingNotifications = scheduledNotifications.filter(n => !n.sent_at && new Date(n.scheduled_for) > new Date());
 
   return (
     <section id="weather" className="py-20 bg-lawn-50 lawn-pattern">
@@ -465,7 +592,7 @@ export function WeatherAlerts() {
 
                 {/* Recommendations */}
                 <div className="space-y-3">
-                  {aiAnalysis.recommendations.map((rec, index) => {
+                  {aiAnalysis.recommendations.slice(0, 3).map((rec, index) => {
                     const CategoryIcon = categoryIcons[rec.category] || Info;
                     return (
                       <Card
@@ -502,6 +629,27 @@ export function WeatherAlerts() {
                     );
                   })}
                 </div>
+
+                {/* Schedule Notifications Button */}
+                {user && (
+                  <Button
+                    className="w-full mt-4"
+                    onClick={handleScheduleNotifications}
+                    disabled={schedulingNotifications}
+                  >
+                    {schedulingNotifications ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Scheduling...
+                      </>
+                    ) : (
+                      <>
+                        <Calendar className="w-4 h-4 mr-2" />
+                        Schedule Smart Notifications
+                      </>
+                    )}
+                  </Button>
+                )}
               </>
             ) : (
               <Card className="mb-4">
@@ -546,73 +694,145 @@ export function WeatherAlerts() {
 
       {/* Manage Notifications Dialog */}
       <Dialog open={manageDialogOpen} onOpenChange={setManageDialogOpen}>
-        <DialogContent aria-describedby={undefined}>
+        <DialogContent className="max-w-lg" aria-describedby={undefined}>
           <DialogHeader>
             <DialogTitle>Manage Notifications</DialogTitle>
           </DialogHeader>
-          <div className="space-y-6 py-4">
-            <div className="flex items-center justify-between">
-              <Label htmlFor="disease-alerts" className="flex flex-col gap-1">
-                <span>Disease Alerts</span>
-                <span className="text-xs text-muted-foreground font-normal">
-                  Get notified when conditions favor disease outbreaks
-                </span>
-              </Label>
-              <Switch
-                id="disease-alerts"
-                checked={notificationSettings.diseaseAlerts}
-                onCheckedChange={(checked) =>
-                  setNotificationSettings((prev) => ({ ...prev, diseaseAlerts: checked }))
-                }
-              />
-            </div>
-            <div className="flex items-center justify-between">
-              <Label htmlFor="insect-alerts" className="flex flex-col gap-1">
-                <span>Insect Alerts</span>
-                <span className="text-xs text-muted-foreground font-normal">
-                  Get notified about pest activity in your area
-                </span>
-              </Label>
-              <Switch
-                id="insect-alerts"
-                checked={notificationSettings.insectAlerts}
-                onCheckedChange={(checked) =>
-                  setNotificationSettings((prev) => ({ ...prev, insectAlerts: checked }))
-                }
-              />
-            </div>
-            <div className="flex items-center justify-between">
-              <Label htmlFor="weather-alerts" className="flex flex-col gap-1">
-                <span>Weather Alerts</span>
-                <span className="text-xs text-muted-foreground font-normal">
-                  Get notified about weather changes affecting your lawn
-                </span>
-              </Label>
-              <Switch
-                id="weather-alerts"
-                checked={notificationSettings.weatherAlerts}
-                onCheckedChange={(checked) =>
-                  setNotificationSettings((prev) => ({ ...prev, weatherAlerts: checked }))
-                }
-              />
-            </div>
-            <div className="flex items-center justify-between">
-              <Label htmlFor="treatment-reminders" className="flex flex-col gap-1">
-                <span>Treatment Reminders</span>
-                <span className="text-xs text-muted-foreground font-normal">
-                  Get reminded when treatments are due
-                </span>
-              </Label>
-              <Switch
-                id="treatment-reminders"
-                checked={notificationSettings.treatmentReminders}
-                onCheckedChange={(checked) =>
-                  setNotificationSettings((prev) => ({ ...prev, treatmentReminders: checked }))
-                }
-              />
-            </div>
-          </div>
-          <div className="flex justify-end gap-3">
+          
+          <Tabs defaultValue="settings" className="w-full">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="settings">Settings</TabsTrigger>
+              <TabsTrigger value="scheduled">
+                Scheduled ({upcomingNotifications.length})
+              </TabsTrigger>
+            </TabsList>
+            
+            <TabsContent value="settings" className="space-y-6 py-4">
+              <div className="flex items-center justify-between">
+                <Label htmlFor="disease-alerts" className="flex flex-col gap-1">
+                  <span>Disease Alerts</span>
+                  <span className="text-xs text-muted-foreground font-normal">
+                    Get notified when conditions favor disease outbreaks
+                  </span>
+                </Label>
+                <Switch
+                  id="disease-alerts"
+                  checked={notificationSettings.diseaseAlerts}
+                  onCheckedChange={(checked) =>
+                    setNotificationSettings((prev) => ({ ...prev, diseaseAlerts: checked }))
+                  }
+                />
+              </div>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="insect-alerts" className="flex flex-col gap-1">
+                  <span>Insect Alerts</span>
+                  <span className="text-xs text-muted-foreground font-normal">
+                    Get notified about pest activity in your area
+                  </span>
+                </Label>
+                <Switch
+                  id="insect-alerts"
+                  checked={notificationSettings.insectAlerts}
+                  onCheckedChange={(checked) =>
+                    setNotificationSettings((prev) => ({ ...prev, insectAlerts: checked }))
+                  }
+                />
+              </div>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="weather-alerts" className="flex flex-col gap-1">
+                  <span>Weather Alerts</span>
+                  <span className="text-xs text-muted-foreground font-normal">
+                    Get notified about weather changes affecting your lawn
+                  </span>
+                </Label>
+                <Switch
+                  id="weather-alerts"
+                  checked={notificationSettings.weatherAlerts}
+                  onCheckedChange={(checked) =>
+                    setNotificationSettings((prev) => ({ ...prev, weatherAlerts: checked }))
+                  }
+                />
+              </div>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="treatment-reminders" className="flex flex-col gap-1">
+                  <span>Treatment Reminders</span>
+                  <span className="text-xs text-muted-foreground font-normal">
+                    Get reminded when treatments are due
+                  </span>
+                </Label>
+                <Switch
+                  id="treatment-reminders"
+                  checked={notificationSettings.treatmentReminders}
+                  onCheckedChange={(checked) =>
+                    setNotificationSettings((prev) => ({ ...prev, treatmentReminders: checked }))
+                  }
+                />
+              </div>
+            </TabsContent>
+            
+            <TabsContent value="scheduled" className="py-4">
+              {!user ? (
+                <div className="text-center py-8">
+                  <Bell className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
+                  <p className="text-muted-foreground">Sign in to see scheduled notifications</p>
+                </div>
+              ) : upcomingNotifications.length === 0 ? (
+                <div className="text-center py-8">
+                  <Calendar className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
+                  <p className="text-muted-foreground">No scheduled notifications</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Click "Schedule Smart Notifications" to get started
+                  </p>
+                </div>
+              ) : (
+                <ScrollArea className="h-[300px]">
+                  <div className="space-y-3">
+                    {upcomingNotifications.map((notification) => {
+                      const CategoryIcon = categoryIcons[notification.category] || Bell;
+                      return (
+                        <div
+                          key={notification.id}
+                          className={`p-3 rounded-xl border ${notification.is_read ? 'bg-muted/50' : 'bg-card'}`}
+                        >
+                          <div className="flex gap-3">
+                            <div className="w-8 h-8 rounded-full bg-lawn-100 flex items-center justify-center shrink-0">
+                              <CategoryIcon className="w-4 h-4 text-primary" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-start justify-between gap-2">
+                                <h4 className="font-medium text-sm text-foreground">
+                                  {notification.title}
+                                </h4>
+                                <div className="flex items-center gap-1 text-xs text-muted-foreground shrink-0">
+                                  <Clock className="w-3 h-3" />
+                                  {formatScheduledTime(notification.scheduled_for)}
+                                </div>
+                              </div>
+                              <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
+                                {notification.message}
+                              </p>
+                            </div>
+                            {!notification.is_read && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="shrink-0 h-8 w-8 p-0"
+                                onClick={() => markNotificationAsRead(notification.id)}
+                              >
+                                <Check className="w-4 h-4" />
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </ScrollArea>
+              )}
+            </TabsContent>
+          </Tabs>
+          
+          <div className="flex justify-end gap-3 pt-2">
             <Button variant="outline" onClick={() => setManageDialogOpen(false)}>
               Cancel
             </Button>

@@ -26,3 +26,9 @@ enable_confirmations = false
 
 [functions.analyze-lawn]
 verify_jwt = false
+
+[functions.analyze-weather]
+verify_jwt = false
+
+[functions.schedule-notifications]
+verify_jwt = true
