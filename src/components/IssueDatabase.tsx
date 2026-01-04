@@ -5,26 +5,44 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { TreatmentModal, type LawnIssue } from "./TreatmentModal";
 
-// Default images by type for visual comparison
-const typeImages: Record<string, string[]> = {
-  disease: [
-    "https://images.unsplash.com/photo-1558635924-b60e7f0ad78d?w=400&h=300&fit=crop",
-    "https://images.unsplash.com/photo-1416879595882-3373a0480b5b?w=400&h=300&fit=crop",
-    "https://images.unsplash.com/photo-1501004318641-b39e6451bec6?w=400&h=300&fit=crop",
-  ],
-  insect: [
-    "https://images.unsplash.com/photo-1590005024862-6b67679a29fb?w=400&h=300&fit=crop",
-    "https://images.unsplash.com/photo-1598511757337-fe2cafc31ba0?w=400&h=300&fit=crop",
-    "https://images.unsplash.com/photo-1563722142-5a287ad06106?w=400&h=300&fit=crop",
-  ],
-  weed: [
-    "https://images.unsplash.com/photo-1530836369250-ef72a3f5cda8?w=400&h=300&fit=crop",
-    "https://images.unsplash.com/photo-1591857177580-dc82b9ac4e1e?w=400&h=300&fit=crop",
-    "https://images.unsplash.com/photo-1462275646964-a0e3571f4f7f?w=400&h=300&fit=crop",
-  ],
+// Import AI-generated issue images
+import brownPatchImg from "@/assets/issues/brown-patch.jpg";
+import dollarSpotImg from "@/assets/issues/dollar-spot.jpg";
+import grayLeafSpotImg from "@/assets/issues/gray-leaf-spot.jpg";
+import whiteGrubsImg from "@/assets/issues/white-grubs.jpg";
+import chinchBugsImg from "@/assets/issues/chinch-bugs.jpg";
+import sodWebwormImg from "@/assets/issues/sod-webworm.jpg";
+import crabgrassImg from "@/assets/issues/crabgrass.jpg";
+import dandelionImg from "@/assets/issues/dandelion.jpg";
+import nutsedgeImg from "@/assets/issues/nutsedge.jpg";
+
+// Specific images for common issues
+const issueImages: Record<string, string> = {
+  "Brown Patch": brownPatchImg,
+  "Dollar Spot": dollarSpotImg,
+  "Gray Leaf Spot": grayLeafSpotImg,
+  "White Grubs": whiteGrubsImg,
+  "Chinch Bugs": chinchBugsImg,
+  "Sod Webworms": sodWebwormImg,
+  "Crabgrass": crabgrassImg,
+  "Dandelion": dandelionImg,
+  "Yellow Nutsedge": nutsedgeImg,
+  "Purple Nutsedge": nutsedgeImg,
 };
 
-const getIssueImage = (type: string, id: number): string => {
+// Default images by type for visual comparison
+const typeImages: Record<string, string[]> = {
+  disease: [brownPatchImg, dollarSpotImg, grayLeafSpotImg],
+  insect: [whiteGrubsImg, chinchBugsImg, sodWebwormImg],
+  weed: [crabgrassImg, dandelionImg, nutsedgeImg],
+};
+
+const getIssueImage = (type: string, name: string, id: number): string => {
+  // First check if there's a specific image for this issue
+  if (issueImages[name]) {
+    return issueImages[name];
+  }
+  // Fall back to type-based images
   const images = typeImages[type] || typeImages.disease;
   return images[id % images.length];
 };
@@ -54,7 +72,6 @@ const issues = [
     description: "A fungal disease that thrives in hot, humid conditions. Common in cool-season grasses.",
     activeIngredients: ["Azoxystrobin (0.38 oz/1,000 sq ft)", "Propiconazole (1-2 oz/1,000 sq ft)"],
     regions: ["southeast", "midwest", "northeast", "texas"],
-    image: "https://images.unsplash.com/photo-1558635924-b60e7f0ad78d?w=400&h=300&fit=crop",
   },
   {
     id: 2,
@@ -66,7 +83,6 @@ const issues = [
     description: "Fungal disease causing gray-brown spots with dark borders, common in St. Augustine and perennial ryegrass.",
     activeIngredients: ["Azoxystrobin (0.38 oz/1,000 sq ft)", "Thiophanate-methyl (4 oz/1,000 sq ft)"],
     regions: ["southeast", "texas", "florida", "california"],
-    image: "https://images.unsplash.com/photo-1416879595882-3373a0480b5b?w=400&h=300&fit=crop",
   },
   {
     id: 3,
@@ -759,7 +775,7 @@ export function IssueDatabase() {
                   {/* Issue Image */}
                   <div className="relative h-40 overflow-hidden">
                     <img
-                      src={getIssueImage(issue.type, issue.id)}
+                      src={getIssueImage(issue.type, issue.name, issue.id)}
                       alt={`${issue.name} - ${issue.type}`}
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                     />

@@ -4,6 +4,7 @@ import { HowItWorks } from "@/components/HowItWorks";
 import { ScanUpload } from "@/components/ScanUpload";
 import { IssueDatabase } from "@/components/IssueDatabase";
 import { WeatherAlerts } from "@/components/WeatherAlerts";
+import { TreatmentCalendar } from "@/components/TreatmentCalendar";
 import { Footer } from "@/components/Footer";
 
 const Index = () => {
@@ -16,6 +17,7 @@ const Index = () => {
         <ScanUpload />
         <IssueDatabase />
         <WeatherAlerts />
+        <TreatmentCalendar />
       </main>
       <Footer />
     </div>
