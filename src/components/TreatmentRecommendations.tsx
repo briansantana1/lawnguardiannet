@@ -12,6 +12,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { PriceComparison } from "@/components/PriceComparison";
 
 const treatmentExample = {
   issue: "Brown Patch Fungus",
@@ -313,6 +314,12 @@ export function TreatmentRecommendations() {
                   {saving ? "Saving..." : "Save Treatment Plan"}
                 </Button>
               </div>
+
+              {/* Price Comparison Section */}
+              <PriceComparison 
+                productName={treatmentExample.chemical[0].name.split(' ')[0]} 
+                productType={productTypes.find(p => p.value === selectedProduct)?.searchTerm || 'fungicide'} 
+              />
             </CardContent>
           </Card>
         </div>
