@@ -588,10 +588,10 @@ const typeIcons = {
   weed: Leaf,
 };
 
-type FilterType = "all" | "disease" | "insect" | "weed";
+type FilterType = "disease" | "insect" | "weed";
 
 export function IssueDatabase() {
-  const [activeFilter, setActiveFilter] = useState<FilterType>("all");
+  const [activeFilter, setActiveFilter] = useState<FilterType | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedRegion, setSelectedRegion] = useState("all");
   const [selectedIssue, setSelectedIssue] = useState<LawnIssue | null>(null);
@@ -603,28 +603,39 @@ export function IssueDatabase() {
   };
 
   const filters: { label: string; value: FilterType; icon?: typeof CircleDot }[] = [
-    { label: "All Issues", value: "all" },
     { label: "Diseases", value: "disease", icon: CircleDot },
     { label: "Insects", value: "insect", icon: Bug },
     { label: "Weeds", value: "weed", icon: Leaf },
   ];
 
-  const filteredIssues = issues.filter((issue) => {
-    // Filter by type
-    const matchesType = activeFilter === "all" || issue.type === activeFilter;
-    
-    // Filter by region
-    const matchesRegion = selectedRegion === "all" || issue.regions.includes(selectedRegion);
-    
-    // Filter by search query (searches in name, symptoms, and description)
+  // Filter issues by region and search, then limit to 5 per category
+  const getFilteredIssues = () => {
     const query = searchQuery.toLowerCase().trim();
-    const matchesSearch = query === "" || 
-      issue.name.toLowerCase().includes(query) ||
-      issue.description.toLowerCase().includes(query) ||
-      issue.symptoms.some(symptom => symptom.toLowerCase().includes(query));
     
-    return matchesType && matchesRegion && matchesSearch;
-  });
+    const filterByRegionAndSearch = (issue: typeof issues[0]) => {
+      const matchesRegion = selectedRegion === "all" || issue.regions.includes(selectedRegion);
+      const matchesSearch = query === "" || 
+        issue.name.toLowerCase().includes(query) ||
+        issue.description.toLowerCase().includes(query) ||
+        issue.symptoms.some(symptom => symptom.toLowerCase().includes(query));
+      return matchesRegion && matchesSearch;
+    };
+
+    // Get 5 of each category
+    const diseases = issues.filter(i => i.type === "disease" && filterByRegionAndSearch(i)).slice(0, 5);
+    const insects = issues.filter(i => i.type === "insect" && filterByRegionAndSearch(i)).slice(0, 5);
+    const weeds = issues.filter(i => i.type === "weed" && filterByRegionAndSearch(i)).slice(0, 5);
+
+    // Filter by active type if selected
+    if (activeFilter === "disease") return diseases;
+    if (activeFilter === "insect") return insects;
+    if (activeFilter === "weed") return weeds;
+    
+    // No filter selected - show all categories
+    return [...diseases, ...insects, ...weeds];
+  };
+
+  const filteredIssues = getFilteredIssues();
 
   return (
     <section id="issues" className="py-20 bg-background">
@@ -664,7 +675,7 @@ export function IssueDatabase() {
           {filters.map((filter) => (
             <button
               key={filter.value}
-              onClick={() => setActiveFilter(filter.value)}
+              onClick={() => setActiveFilter(activeFilter === filter.value ? null : filter.value)}
               className={`flex items-center gap-2 px-5 py-2.5 rounded-full font-medium text-sm transition-all duration-200 ${
                 activeFilter === filter.value
                   ? "bg-primary text-primary-foreground shadow-lawn"
@@ -789,7 +800,7 @@ export function IssueDatabase() {
                 className="mt-4"
                 onClick={() => {
                   setSearchQuery("");
-                  setActiveFilter("all");
+                  setActiveFilter(null);
                   setSelectedRegion("all");
                 }}
               >
@@ -799,15 +810,6 @@ export function IssueDatabase() {
           )}
         </div>
 
-        {/* View All Button */}
-        {filteredIssues.length > 0 && (
-          <div className="text-center mt-10">
-            <Button variant="outline" size="lg">
-              Browse All Issues
-              <ChevronRight className="w-4 h-4" />
-            </Button>
-          </div>
-        )}
 
         {/* Treatment Modal */}
         <TreatmentModal
