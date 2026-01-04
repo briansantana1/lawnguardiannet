@@ -1,4 +1,5 @@
-import { CreditCard, XCircle, RefreshCw, Mail, ChevronRight, LogOut, User, Save, ArrowLeft } from "lucide-react";
+import { useState } from "react";
+import { CreditCard, XCircle, RefreshCw, Mail, ChevronRight, ChevronDown, LogOut, User, Save, ArrowLeft } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -25,18 +26,12 @@ const menuItems = [
     href: "/restore-membership",
     description: "Restore a previous subscription",
   },
-  {
-    label: "Contact Us",
-    icon: Mail,
-    href: "mailto:info.lawnguardian@yahoo.com",
-    description: "info.lawnguardian@yahoo.com",
-    isExternal: true,
-  },
 ];
 
 export function Profile() {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
+  const [contactExpanded, setContactExpanded] = useState(false);
 
   return (
     <div className="min-h-screen bg-background pb-20">
@@ -80,8 +75,8 @@ export function Profile() {
 
         {/* Menu Items */}
         <div className="space-y-2">
-          {menuItems.map((item) => {
-            const content = (
+          {menuItems.map((item) => (
+            <Link key={item.label} to={item.href}>
               <Card variant="elevated" className="hover:shadow-lg transition-shadow cursor-pointer">
                 <CardContent className="flex items-center gap-4 py-4">
                   <div className="w-10 h-10 rounded-xl bg-muted flex items-center justify-center">
@@ -94,22 +89,42 @@ export function Profile() {
                   <ChevronRight className="w-5 h-5 text-muted-foreground" />
                 </CardContent>
               </Card>
-            );
+            </Link>
+          ))}
 
-            if (item.isExternal) {
-              return (
-                <a key={item.label} href={item.href}>
-                  {content}
-                </a>
-              );
-            }
-
-            return (
-              <Link key={item.label} to={item.href}>
-                {content}
-              </Link>
-            );
-          })}
+          {/* Contact Us - Expandable */}
+          <Card 
+            variant="elevated" 
+            className="hover:shadow-lg transition-shadow cursor-pointer"
+            onClick={() => setContactExpanded(!contactExpanded)}
+          >
+            <CardContent className="py-4">
+              <div className="flex items-center gap-4">
+                <div className="w-10 h-10 rounded-xl bg-muted flex items-center justify-center">
+                  <Mail className="w-5 h-5 text-muted-foreground" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="font-medium text-foreground">Contact Us</h3>
+                </div>
+                {contactExpanded ? (
+                  <ChevronDown className="w-5 h-5 text-muted-foreground" />
+                ) : (
+                  <ChevronRight className="w-5 h-5 text-muted-foreground" />
+                )}
+              </div>
+              {contactExpanded && (
+                <div className="mt-3 pl-14">
+                  <a 
+                    href="mailto:info.lawnguardian@yahoo.com" 
+                    className="text-sm text-primary hover:underline"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    info.lawnguardian@yahoo.com
+                  </a>
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </div>
 
         {/* Saved Plans Link */}
