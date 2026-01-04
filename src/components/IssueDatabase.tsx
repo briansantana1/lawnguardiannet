@@ -2,6 +2,7 @@ import { useState } from "react";
 import { AlertTriangle, Bug, Leaf, CircleDot, ChevronRight, Search } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { TreatmentModal, type LawnIssue } from "./TreatmentModal";
 
 const issues = [
   // ===== DISEASES =====
@@ -358,6 +359,13 @@ type FilterType = "all" | "disease" | "insect" | "weed";
 export function IssueDatabase() {
   const [activeFilter, setActiveFilter] = useState<FilterType>("all");
   const [searchQuery, setSearchQuery] = useState("");
+  const [selectedIssue, setSelectedIssue] = useState<LawnIssue | null>(null);
+  const [modalOpen, setModalOpen] = useState(false);
+
+  const handleViewTreatment = (issue: typeof issues[0]) => {
+    setSelectedIssue(issue as LawnIssue);
+    setModalOpen(true);
+  };
 
   const filters: { label: string; value: FilterType; icon?: typeof CircleDot }[] = [
     { label: "All Issues", value: "all" },
@@ -499,7 +507,12 @@ export function IssueDatabase() {
 
                     {/* Treatment Preview */}
                     <div className="pt-4 border-t border-lawn-100">
-                      <Button variant="ghost" size="sm" className="w-full justify-between">
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="w-full justify-between"
+                        onClick={() => handleViewTreatment(issue)}
+                      >
                         View Treatment
                         <ChevronRight className="w-4 h-4" />
                       </Button>
@@ -537,6 +550,13 @@ export function IssueDatabase() {
             </Button>
           </div>
         )}
+
+        {/* Treatment Modal */}
+        <TreatmentModal
+          issue={selectedIssue}
+          open={modalOpen}
+          onOpenChange={setModalOpen}
+        />
       </div>
     </section>
   );
