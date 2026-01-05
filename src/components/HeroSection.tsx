@@ -28,7 +28,7 @@ export function HeroSection() {
           {/* Headline */}
           <h1 className="font-heading text-4xl md:text-6xl font-bold text-gray-900 mb-6 animate-slide-up">
             Get Outside and Touch{" "}
-            <span className="text-gradient">Grass Again</span>
+            <span className="text-gray-900">Grass Again</span>
           </h1>
 
           {/* Subheadline */}
