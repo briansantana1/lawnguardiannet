@@ -50,10 +50,6 @@ export function HeroSection() {
               <Camera className="w-5 h-5" />
               Scan Your Lawn
             </Button>
-            <Button variant="outline" size="lg">
-              See How It Works
-              <ArrowRight className="w-4 h-4" />
-            </Button>
           </div>
 
           {/* Trust Badge */}
