@@ -18,18 +18,27 @@ serve(async (req) => {
       throw new Error('AI API key is not configured');
     }
 
-    const { imageBase64, grassType, season, location } = await req.json();
+    const { imageBase64, additionalImages, grassType, season, location, multipleAngles } = await req.json();
 
     if (!imageBase64) {
       throw new Error('No image provided');
     }
 
-    console.log('Analyzing lawn image with GPT-5-mini...');
+    const totalImages = 1 + (additionalImages?.length || 0);
+    console.log('Analyzing lawn with GPT-5-mini...');
+    console.log('Total images:', totalImages);
     console.log('Grass type:', grassType || 'Unknown');
     console.log('Season:', season || 'Unknown');
     console.log('Location:', location || 'Unknown');
 
     const systemPrompt = `You are an expert lawn care diagnostician and agronomist with 20+ years of experience specializing in turfgrass diseases, insects, and weeds. You are CONSERVATIVE and PRECISE in your identifications.
+
+${multipleAngles ? `MULTI-ANGLE ANALYSIS: You have been provided with ${totalImages} photos from different angles. Use ALL images together to:
+- Cross-reference symptoms visible in different photos
+- Confirm or rule out diagnoses based on consistent evidence across images
+- Identify issues that may only be visible from certain angles
+- Increase confidence when the same symptoms appear in multiple photos
+- Note any contradictory evidence between photos` : ''}
 
 CRITICAL IDENTIFICATION RULES:
 1. NEVER guess - if you cannot clearly see distinguishing features, mark confidence as "low" or don't include the issue
@@ -47,7 +56,7 @@ COMMON MISIDENTIFICATION WARNINGS:
 
 For EACH identified issue, you MUST provide:
 - "visual_evidence": specific features you observed in THIS image that led to the identification
-- Only mark "high" confidence if you see 3+ confirming characteristics
+- Only mark "high" confidence if you see 3+ confirming characteristics${multipleAngles ? ' OR consistent evidence across multiple photos' : ''}
 - Mark "medium" if you see 1-2 characteristics
 - Mark "low" or omit if you're uncertain
 
@@ -131,14 +140,23 @@ Be specific with chemical recommendations including exact active ingredients, ap
             content: [
               {
                 type: 'text',
-                text: `Please analyze this lawn image and provide a comprehensive diagnosis, treatment plan, and forecast. The lawn is ${grassType || 'unknown grass type'} in ${location || 'an unknown location'} during ${season || 'an unknown season'}. Respond ONLY with the JSON object, no additional text.`
+                text: multipleAngles 
+                  ? `Please analyze these ${totalImages} lawn photos from different angles and provide a comprehensive diagnosis, treatment plan, and forecast. Use all images together to cross-reference symptoms and strengthen your diagnosis. The lawn is ${grassType || 'unknown grass type'} in ${location || 'an unknown location'} during ${season || 'an unknown season'}. Respond ONLY with the JSON object, no additional text.`
+                  : `Please analyze this lawn image and provide a comprehensive diagnosis, treatment plan, and forecast. The lawn is ${grassType || 'unknown grass type'} in ${location || 'an unknown location'} during ${season || 'an unknown season'}. Respond ONLY with the JSON object, no additional text.`
               },
               {
                 type: 'image_url',
                 image_url: {
                   url: imageBase64.startsWith('data:') ? imageBase64 : `data:image/jpeg;base64,${imageBase64}`
                 }
-              }
+              },
+              // Include additional images if provided
+              ...(additionalImages || []).map((img: string) => ({
+                type: 'image_url',
+                image_url: {
+                  url: img.startsWith('data:') ? img : `data:image/jpeg;base64,${img}`
+                }
+              }))
             ]
           }
         ],
