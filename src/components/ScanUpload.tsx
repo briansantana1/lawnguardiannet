@@ -1,5 +1,5 @@
 import { useState, useRef } from "react";
-import { Camera, Upload, X, Loader2, Sparkles, Plus, Images } from "lucide-react";
+import { Camera, Upload, X, Loader2, Sparkles, CheckCircle2, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
@@ -9,7 +9,7 @@ import { AnalysisResults } from "@/components/AnalysisResults";
 import { useAuth } from "@/hooks/useAuth";
 
 export function ScanUpload() {
-  const [selectedImages, setSelectedImages] = useState<string[]>([]);
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisResult, setAnalysisResult] = useState<LawnAnalysisResult | null>(null);
   const [grassType, setGrassType] = useState("cool-season");
@@ -27,46 +27,27 @@ export function ScanUpload() {
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (files && files.length > 0) {
-      const newImages: string[] = [];
-      const maxFiles = Math.min(files.length, 5 - selectedImages.length);
-      
-      for (let i = 0; i < maxFiles; i++) {
-        const file = files[i];
-        const reader = new FileReader();
-        reader.onloadend = () => {
-          newImages.push(reader.result as string);
-          if (newImages.length === maxFiles) {
-            setSelectedImages([...selectedImages, ...newImages]);
-            setAnalysisResult(null);
-          }
-        };
-        reader.readAsDataURL(file);
-      }
-
-      if (files.length > maxFiles) {
-        toast.info(`Maximum 5 photos allowed. Added first ${maxFiles} photos.`);
-      }
+      const file = files[0];
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setSelectedImage(reader.result as string);
+        setAnalysisResult(null);
+      };
+      reader.readAsDataURL(file);
     }
   };
 
-  const removeImage = (index: number) => {
-    setSelectedImages(selectedImages.filter((_, i) => i !== index));
-  };
-
   const handleAnalyze = async () => {
-    if (selectedImages.length === 0) return;
+    if (!selectedImage) return;
 
     setIsAnalyzing(true);
     try {
-      // Send primary image for analysis, mention multiple angles in context
       const { data, error } = await supabase.functions.invoke('analyze-lawn', {
         body: {
-          imageBase64: selectedImages[0],
-          additionalImages: selectedImages.slice(1),
+          imageBase64: selectedImage,
           grassType,
           season: getCurrentSeason(),
           location: "United States",
-          multipleAngles: selectedImages.length > 1,
         },
       });
 
@@ -103,7 +84,7 @@ export function ScanUpload() {
     try {
       const { error } = await supabase.from('saved_treatment_plans').insert([{
         user_id: user.id,
-        image_url: selectedImages[0] || null,
+        image_url: selectedImage || null,
         diagnosis: JSON.parse(JSON.stringify(analysisResult.diagnosis)),
         treatment_plan: JSON.parse(JSON.stringify(analysisResult.treatment_plan)),
         forecast: JSON.parse(JSON.stringify(analysisResult.forecast)),
@@ -113,15 +94,15 @@ export function ScanUpload() {
 
       if (error) throw error;
 
-      toast.success('Treatment plan saved to your account!');
+      toast.success('Treatment plan saved to My Saved Plans!');
     } catch (error) {
       console.error('Save error:', error);
       toast.error('Failed to save treatment plan.');
     }
   };
 
-  const clearImages = () => {
-    setSelectedImages([]);
+  const clearImage = () => {
+    setSelectedImage(null);
     setAnalysisResult(null);
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
@@ -132,13 +113,22 @@ export function ScanUpload() {
     return (
       <AnalysisResults
         result={analysisResult}
-        imageUrl={selectedImages[0] || null}
+        imageUrl={selectedImage}
         onSave={handleSavePlan}
-        onNewScan={clearImages}
+        onNewScan={clearImage}
         isLoggedIn={!!user}
       />
     );
   }
+
+  const photoTips = [
+    { icon: CheckCircle2, text: "Get close to the problem area (2-3 feet away)", good: true },
+    { icon: CheckCircle2, text: "Use natural daylight for best results", good: true },
+    { icon: CheckCircle2, text: "Hold your phone steady and focus clearly", good: true },
+    { icon: CheckCircle2, text: "Include both affected and healthy grass if possible", good: true },
+    { icon: AlertCircle, text: "Avoid shadows falling across the problem area", good: false },
+    { icon: AlertCircle, text: "Don't use flash - it washes out colors", good: false },
+  ];
 
   return (
     <section id="scan" className="py-20 bg-lawn-50">
@@ -150,9 +140,27 @@ export function ScanUpload() {
               Scan Your Lawn Problem
             </h2>
             <p className="text-muted-foreground">
-              Upload multiple photos from different angles for more accurate AI diagnosis
+              Upload a clear, well-lit photo of the affected area for accurate AI diagnosis
             </p>
           </div>
+
+          {/* Photo Tips Card */}
+          <Card className="mb-6 border-lawn-200 bg-lawn-50/50">
+            <CardContent className="p-4">
+              <h3 className="font-semibold text-foreground mb-3 flex items-center gap-2">
+                <Camera className="w-5 h-5 text-primary" />
+                Tips for the Best Photo
+              </h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {photoTips.map((tip, i) => (
+                  <div key={i} className="flex items-start gap-2">
+                    <tip.icon className={`w-4 h-4 mt-0.5 flex-shrink-0 ${tip.good ? 'text-primary' : 'text-amber-500'}`} />
+                    <span className="text-sm text-muted-foreground">{tip.text}</span>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
 
           {/* Grass Type Selector */}
           <div className="mb-6">
@@ -173,7 +181,7 @@ export function ScanUpload() {
           {/* Upload Card */}
           <Card variant="elevated" className="overflow-hidden">
             <CardContent className="p-0">
-              {selectedImages.length === 0 ? (
+              {!selectedImage ? (
                 <div className="p-8">
                   {/* Upload Area */}
                   <label
@@ -181,13 +189,13 @@ export function ScanUpload() {
                     className="flex flex-col items-center justify-center h-64 border-2 border-dashed border-lawn-300 rounded-2xl bg-lawn-50 cursor-pointer hover:bg-lawn-100 hover:border-primary transition-all duration-300"
                   >
                     <div className="w-16 h-16 rounded-full gradient-lawn flex items-center justify-center mb-4 shadow-glow">
-                      <Images className="w-8 h-8 text-primary-foreground" />
+                      <Camera className="w-8 h-8 text-primary-foreground" />
                     </div>
                     <p className="font-semibold text-foreground mb-1">
-                      Upload up to 5 photos
+                      Upload a photo of your lawn problem
                     </p>
-                    <p className="text-sm text-muted-foreground">
-                      Multiple angles help improve diagnosis accuracy
+                    <p className="text-sm text-muted-foreground text-center px-4">
+                      A clear, focused photo helps our AI provide an accurate diagnosis
                     </p>
                   </label>
                   <input
@@ -195,7 +203,6 @@ export function ScanUpload() {
                     id="lawn-upload"
                     type="file"
                     accept="image/*"
-                    multiple
                     className="hidden"
                     onChange={handleFileSelect}
                   />
@@ -208,7 +215,7 @@ export function ScanUpload() {
                       onClick={() => fileInputRef.current?.click()}
                     >
                       <Upload className="w-4 h-4" />
-                      Upload Photos
+                      Upload Photo
                     </Button>
                     <Button
                       variant="scan"
@@ -222,60 +229,38 @@ export function ScanUpload() {
                 </div>
               ) : (
                 <div className="p-6">
-                  {/* Image Grid */}
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-6">
-                    {selectedImages.map((img, index) => (
-                      <div key={index} className="relative aspect-square rounded-xl overflow-hidden group">
-                        <img
-                          src={img}
-                          alt={`Lawn photo ${index + 1}`}
-                          className="w-full h-full object-cover"
-                        />
-                        <button
-                          onClick={() => removeImage(index)}
-                          className="absolute top-2 right-2 w-8 h-8 rounded-full bg-card/90 backdrop-blur-sm flex items-center justify-center hover:bg-card transition-colors shadow-lawn opacity-0 group-hover:opacity-100"
-                        >
-                          <X className="w-4 h-4 text-foreground" />
-                        </button>
-                        {index === 0 && (
-                          <span className="absolute bottom-2 left-2 px-2 py-1 rounded-lg bg-primary text-primary-foreground text-xs font-medium">
-                            Primary
-                          </span>
-                        )}
-                      </div>
-                    ))}
-                    {selectedImages.length < 5 && (
-                      <button
-                        onClick={() => fileInputRef.current?.click()}
-                        className="aspect-square rounded-xl border-2 border-dashed border-lawn-300 flex flex-col items-center justify-center hover:bg-lawn-100 hover:border-primary transition-all duration-300"
-                      >
-                        <Plus className="w-8 h-8 text-muted-foreground mb-1" />
-                        <span className="text-xs text-muted-foreground">Add more</span>
-                      </button>
-                    )}
+                  {/* Selected Image Preview */}
+                  <div className="relative aspect-video rounded-xl overflow-hidden mb-6 group">
+                    <img
+                      src={selectedImage}
+                      alt="Lawn photo"
+                      className="w-full h-full object-cover"
+                    />
+                    <button
+                      onClick={clearImage}
+                      className="absolute top-3 right-3 w-10 h-10 rounded-full bg-card/90 backdrop-blur-sm flex items-center justify-center hover:bg-card transition-colors shadow-lawn"
+                    >
+                      <X className="w-5 h-5 text-foreground" />
+                    </button>
                   </div>
 
                   <input
                     ref={fileInputRef}
                     type="file"
                     accept="image/*"
-                    multiple
                     className="hidden"
                     onChange={handleFileSelect}
                   />
-
-                  <p className="text-sm text-muted-foreground text-center mb-4">
-                    {selectedImages.length} of 5 photos uploaded
-                  </p>
 
                   {/* Action Buttons */}
                   <div className="flex gap-3">
                     <Button
                       variant="secondary"
-                      onClick={clearImages}
+                      onClick={() => fileInputRef.current?.click()}
                       className="flex-1"
                     >
-                      Clear All
+                      <Upload className="w-4 h-4" />
+                      Change Photo
                     </Button>
                     <Button
                       variant="scan"
@@ -297,26 +282,26 @@ export function ScanUpload() {
                       )}
                     </Button>
                   </div>
+
+                  {/* Save reminder for logged-in users */}
+                  {user && (
+                    <p className="text-sm text-muted-foreground text-center mt-4">
+                      After analysis, you can save your diagnosis and treatment plan to <strong>My Saved Plans</strong>
+                    </p>
+                  )}
                 </div>
               )}
             </CardContent>
           </Card>
 
-          {/* Tips */}
-          <div className="mt-6 grid grid-cols-3 gap-4">
-            {[
-              "Capture from multiple angles",
-              "Use good natural lighting",
-              "Include healthy grass for comparison",
-            ].map((tip, i) => (
-              <div
-                key={i}
-                className="text-center p-3 rounded-xl bg-card shadow-sm"
-              >
-                <p className="text-xs text-muted-foreground">{tip}</p>
-              </div>
-            ))}
-          </div>
+          {/* Login prompt for guests */}
+          {!user && (
+            <div className="mt-6 p-4 rounded-xl bg-card border border-lawn-200 text-center">
+              <p className="text-sm text-muted-foreground">
+                <strong>Want to save your results?</strong> Sign in to save your photos, diagnoses, and treatment plans to access anytime.
+              </p>
+            </div>
+          )}
         </div>
       </div>
     </section>
