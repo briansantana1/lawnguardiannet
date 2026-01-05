@@ -1,19 +1,11 @@
 import { Camera, ArrowRight, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import heroLawn from "@/assets/hero-lawn.jpg";
 
 export function HeroSection() {
   return (
     <section className="relative min-h-screen pt-16 overflow-hidden">
-      {/* Background Image */}
-      <div className="absolute inset-0">
-        <img
-          src={heroLawn}
-          alt="Lush green lawn"
-          className="w-full h-full object-cover"
-        />
-        <div className="absolute inset-0 bg-gradient-to-b from-background/30 via-background/60 to-background" />
-      </div>
+      {/* Background Gradient */}
+      <div className="absolute inset-0 bg-gradient-to-b from-lawn-100 via-lawn-50 to-background" />
 
       {/* Content */}
       <div className="relative container mx-auto px-4 pt-20 pb-32">
