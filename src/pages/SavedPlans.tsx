@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, FileText, Trash2, Loader2 } from "lucide-react";
+import { ArrowLeft, FileText, Trash2, Loader2, ImageIcon } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { BottomNavigation } from "@/components/BottomNavigation";
@@ -16,6 +16,7 @@ interface SavedPlan {
   grass_type: string | null;
   season: string | null;
   created_at: string;
+  image_url: string | null;
 }
 
 export function SavedPlans() {
@@ -144,9 +145,25 @@ export function SavedPlans() {
             {plans.map((plan) => (
               <Card key={plan.id} variant="elevated">
                 <CardContent className="py-4">
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <h3 className="font-medium text-foreground">
+                  <div className="flex items-start gap-4">
+                    {/* Photo Thumbnail */}
+                    <div className="w-20 h-20 flex-shrink-0 rounded-lg overflow-hidden bg-lawn-100 border border-lawn-200">
+                      {plan.image_url ? (
+                        <img
+                          src={plan.image_url}
+                          alt="Lawn photo"
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center">
+                          <ImageIcon className="w-8 h-8 text-muted-foreground/50" />
+                        </div>
+                      )}
+                    </div>
+                    
+                    {/* Plan Details */}
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-medium text-foreground truncate">
                         {plan.diagnosis?.primary_issue || "Lawn Diagnosis"}
                       </h3>
                       <p className="text-sm text-muted-foreground">
@@ -158,10 +175,12 @@ export function SavedPlans() {
                         </p>
                       )}
                     </div>
+                    
+                    {/* Delete Button */}
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="text-destructive hover:text-destructive"
+                      className="text-destructive hover:text-destructive flex-shrink-0"
                       onClick={() => handleDelete(plan.id)}
                     >
                       <Trash2 className="w-4 h-4" />
