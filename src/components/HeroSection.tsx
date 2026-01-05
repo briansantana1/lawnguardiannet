@@ -26,14 +26,14 @@ export function HeroSection() {
 
 
           {/* Headline */}
-          <h1 className="font-heading text-4xl md:text-6xl font-bold text-foreground mb-6 animate-slide-up">
+          <h1 className="font-heading text-4xl md:text-6xl font-bold text-gray-900 mb-6 animate-slide-up">
             Get Outside and Touch{" "}
             <span className="text-gradient">Grass Again</span>
           </h1>
 
           {/* Subheadline */}
           <p
-            className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto mb-10 animate-slide-up"
+            className="text-lg md:text-xl text-gray-800 max-w-2xl mx-auto mb-10 animate-slide-up"
             style={{ animationDelay: "0.1s" }}
           >
             Scan, diagnose, and fix lawn problems in seconds. Our AI identifies
