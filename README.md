@@ -18,9 +18,60 @@ Changes made via Lovable will be committed automatically to this repo.
 
 If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+The only requirement is having Node.js & npm installed.
 
-Follow these steps:
+## Quick Setup (Windows)
+
+**Option 1: Use the Setup Script (Recommended)**
+```powershell
+# Run the automated setup script
+.\setup.ps1
+```
+
+**Option 2: Manual Installation**
+
+1. **Install Node.js** (if not already installed):
+   - Visit [nodejs.org](https://nodejs.org/)
+   - Download the LTS version (Windows Installer .msi)
+   - Run the installer and ensure "Add to PATH" is checked
+   - Restart your terminal after installation
+
+2. **Verify installation**:
+   ```powershell
+   node --version
+   npm --version
+   ```
+
+3. **Install dependencies**:
+   ```powershell
+   npm install
+   ```
+
+4. **Start the development server**:
+   ```powershell
+   npm run dev
+   ```
+
+**Alternative: Using Winget (Windows 10/11)**
+```powershell
+winget install OpenJS.NodeJS.LTS
+npm install
+npm run dev
+```
+
+**Alternative: Using Bun (Faster)**
+```powershell
+# Install Bun
+powershell -c "irm bun.sh/install.ps1 | iex"
+
+# Install dependencies
+bun install
+
+# Start dev server
+bun run dev
+```
+
+## Manual Setup Steps
 
 ```sh
 # Step 1: Clone the repository using the project's Git URL.

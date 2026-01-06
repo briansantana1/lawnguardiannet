@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { TreatmentModal, type LawnIssue } from "./TreatmentModal";
 
-// Import AI-generated issue images
+// Import local issue images
 import brownPatchImg from "@/assets/issues/brown-patch.jpg";
 import dollarSpotImg from "@/assets/issues/dollar-spot.jpg";
 import grayLeafSpotImg from "@/assets/issues/gray-leaf-spot.jpg";
@@ -15,22 +15,71 @@ import sodWebwormImg from "@/assets/issues/sod-webworm.jpg";
 import crabgrassImg from "@/assets/issues/crabgrass.jpg";
 import dandelionImg from "@/assets/issues/dandelion.jpg";
 import nutsedgeImg from "@/assets/issues/nutsedge.jpg";
+import whiteCloverImg from "@/assets/issues/white-clover.webp";
 
-// Specific images for common issues
+// Use local images where available, Lorem Picsum for reliable placeholders
 const issueImages: Record<string, string> = {
+  // ===== DISEASES (using local + picsum for lawn/grass themed images) =====
   "Brown Patch": brownPatchImg,
   "Dollar Spot": dollarSpotImg,
   "Gray Leaf Spot": grayLeafSpotImg,
+  // Diseases - Real photos from Unsplash
+  "Pythium Blight": "https://images.unsplash.com/photo-1558731817-6e1e47adbac9?w=400&h=300&fit=crop", // damaged grass
+  "Red Thread": "https://images.unsplash.com/photo-1558731817-6e1e47adbac9?w=400&h=300&fit=crop", // lawn disease
+  "Rust": "https://images.unsplash.com/photo-1558731817-6e1e47adbac9?w=400&h=300&fit=crop", // grass rust
+  "Powdery Mildew": "https://images.unsplash.com/photo-1416879595882-3373a0480b5b?w=400&h=300&fit=crop", // plant mildew
+  "Snow Mold": "https://images.unsplash.com/photo-1491002052546-bf38f186af56?w=400&h=300&fit=crop", // snow/grass
+  "Fairy Ring": "https://images.unsplash.com/photo-1509587584298-0f3b3a3a1797?w=400&h=300&fit=crop", // mushrooms
+  "Take-All Root Rot": "https://images.unsplash.com/photo-1558731817-6e1e47adbac9?w=400&h=300&fit=crop", // dying grass
+  "Large Patch": "https://images.unsplash.com/photo-1558731817-6e1e47adbac9?w=400&h=300&fit=crop", // grass patch
+  "Summer Patch": "https://images.unsplash.com/photo-1558731817-6e1e47adbac9?w=400&h=300&fit=crop", // lawn
+  "Necrotic Ring Spot": "https://images.unsplash.com/photo-1558731817-6e1e47adbac9?w=400&h=300&fit=crop", // ring pattern
+  "Leaf Spot/Melting Out": "https://images.unsplash.com/photo-1416879595882-3373a0480b5b?w=400&h=300&fit=crop", // spotted leaves
+  "Spring Dead Spot": "https://images.unsplash.com/photo-1558731817-6e1e47adbac9?w=400&h=300&fit=crop", // dead grass
+  
+  // ===== INSECTS (using local + picsum) =====
   "White Grubs": whiteGrubsImg,
   "Chinch Bugs": chinchBugsImg,
   "Sod Webworms": sodWebwormImg,
+  // Insects - Real photos from Unsplash
+  "Fall Armyworms": "https://images.unsplash.com/photo-1598300056393-4aac492f4344?w=400&h=300&fit=crop", // caterpillar
+  "Mole Crickets": "https://images.unsplash.com/photo-1569058242253-92a9c755a0ec?w=400&h=300&fit=crop", // cricket
+  "Billbugs": "https://images.unsplash.com/photo-1593001872095-7d5b3868fb1d?w=400&h=300&fit=crop", // beetle
+  "Fire Ants": "https://images.unsplash.com/photo-1558642452-9d2a7deb7f62?w=400&h=300&fit=crop", // ants
+  "Cutworms": "https://images.unsplash.com/photo-1598300056393-4aac492f4344?w=400&h=300&fit=crop", // caterpillar
+  "Japanese Beetles": "https://images.unsplash.com/photo-1593001872095-7d5b3868fb1d?w=400&h=300&fit=crop", // beetle
+  "European Crane Fly": "https://images.unsplash.com/photo-1569058242253-92a9c755a0ec?w=400&h=300&fit=crop", // fly
+  "Spittlebugs": "https://images.unsplash.com/photo-1569058242253-92a9c755a0ec?w=400&h=300&fit=crop", // bug
+  "Bermudagrass Mite": "https://images.unsplash.com/photo-1569058242253-92a9c755a0ec?w=400&h=300&fit=crop", // small bug
+  
+  // ===== WEEDS (using local + picsum) =====
   "Crabgrass": crabgrassImg,
   "Dandelion": dandelionImg,
   "Yellow Nutsedge": nutsedgeImg,
   "Purple Nutsedge": nutsedgeImg,
+  // Weeds - Real photos
+  "White Clover": whiteCloverImg, // local asset
+  "Chickweed": "https://images.unsplash.com/photo-1416879595882-3373a0480b5b?w=400&h=300&fit=crop", // small plant
+  "Henbit": "https://images.unsplash.com/photo-1490750967868-88aa4486c946?w=400&h=300&fit=crop", // purple flowers
+  "Broadleaf Plantain": "https://images.unsplash.com/photo-1446034295857-c39f8844fad4?w=400&h=300&fit=crop", // broad leaves
+  "Ground Ivy (Creeping Charlie)": "https://images.unsplash.com/photo-1559564484-e48b3e040ff4?w=400&h=300&fit=crop", // ground cover
+  "Wild Violet": "https://images.unsplash.com/photo-1457089328109-e5d9bd499191?w=400&h=300&fit=crop", // violet flowers
+  "Goosegrass": "https://images.unsplash.com/photo-1558731817-6e1e47adbac9?w=400&h=300&fit=crop", // grass weed
+  "Dallisgrass": "https://images.unsplash.com/photo-1558731817-6e1e47adbac9?w=400&h=300&fit=crop", // grass weed
+  "Spotted Spurge": "https://images.unsplash.com/photo-1416879595882-3373a0480b5b?w=400&h=300&fit=crop", // low plant
+  "Annual Bluegrass (Poa annua)": "https://images.unsplash.com/photo-1558731817-6e1e47adbac9?w=400&h=300&fit=crop", // grass
+  "Doveweed": "https://images.unsplash.com/photo-1416879595882-3373a0480b5b?w=400&h=300&fit=crop", // plant
+  "Torpedograss": "https://images.unsplash.com/photo-1558731817-6e1e47adbac9?w=400&h=300&fit=crop", // grass
+  "Oxalis (Yellow Woodsorrel)": "https://images.unsplash.com/photo-1591857177580-dc82b9ac4e1e?w=400&h=300&fit=crop", // clover-like
+  "Poa Trivialis (Rough Bluegrass)": "https://images.unsplash.com/photo-1558731817-6e1e47adbac9?w=400&h=300&fit=crop", // grass
+  "Black Medic": "https://images.unsplash.com/photo-1591857177580-dc82b9ac4e1e?w=400&h=300&fit=crop", // clover-like
+  "Kyllinga": "https://images.unsplash.com/photo-1558731817-6e1e47adbac9?w=400&h=300&fit=crop", // sedge
+  "Bahiagrass": "https://images.unsplash.com/photo-1558731817-6e1e47adbac9?w=400&h=300&fit=crop", // grass
+  "Lawn Burweed (Stickers)": "https://images.unsplash.com/photo-1416879595882-3373a0480b5b?w=400&h=300&fit=crop", // low weed
+  "Chamberbitter": "https://images.unsplash.com/photo-1416879595882-3373a0480b5b?w=400&h=300&fit=crop", // fern-like
 };
 
-// Default images by type for visual comparison
+// Default images by type for visual comparison (using local images)
 const typeImages: Record<string, string[]> = {
   disease: [brownPatchImg, dollarSpotImg, grayLeafSpotImg],
   insect: [whiteGrubsImg, chinchBugsImg, sodWebwormImg],
@@ -651,7 +700,7 @@ export function IssueDatabase() {
     { label: "Weeds", value: "weed", icon: Leaf },
   ];
 
-  // Filter issues by region and search, then limit to 5 per category
+  // Filter issues by region and search, then limit to 3 total
   const getFilteredIssues = () => {
     const query = searchQuery.toLowerCase().trim();
     
@@ -664,18 +713,22 @@ export function IssueDatabase() {
       return matchesRegion && matchesSearch;
     };
 
-    // Get 5 of each category
-    const diseases = issues.filter(i => i.type === "disease" && filterByRegionAndSearch(i)).slice(0, 5);
-    const insects = issues.filter(i => i.type === "insect" && filterByRegionAndSearch(i)).slice(0, 5);
-    const weeds = issues.filter(i => i.type === "weed" && filterByRegionAndSearch(i)).slice(0, 5);
+    // Get filtered issues by category
+    const diseases = issues.filter(i => i.type === "disease" && filterByRegionAndSearch(i));
+    const insects = issues.filter(i => i.type === "insect" && filterByRegionAndSearch(i));
+    const weeds = issues.filter(i => i.type === "weed" && filterByRegionAndSearch(i));
 
-    // Filter by active type if selected
-    if (activeFilter === "disease") return diseases;
-    if (activeFilter === "insect") return insects;
-    if (activeFilter === "weed") return weeds;
+    // Filter by active type if selected - show 3 of that type
+    if (activeFilter === "disease") return diseases.slice(0, 3);
+    if (activeFilter === "insect") return insects.slice(0, 3);
+    if (activeFilter === "weed") return weeds.slice(0, 3);
     
-    // No filter selected - show all categories
-    return [...diseases, ...insects, ...weeds];
+    // No filter selected - show 1 of each category (3 total)
+    return [
+      ...diseases.slice(0, 1),
+      ...insects.slice(0, 1),
+      ...weeds.slice(0, 1),
+    ];
   };
 
   const filteredIssues = getFilteredIssues();

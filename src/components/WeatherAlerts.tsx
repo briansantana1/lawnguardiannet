@@ -22,12 +22,20 @@ import {
   Calendar,
   Check,
   Clock,
+  Sun,
+  CloudRain,
+  Gauge,
+  TrendingUp,
+  TrendingDown,
+  ExternalLink,
+  HelpCircle,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -45,8 +53,14 @@ interface WeatherData {
   humidity: number;
   wind: number;
   soilTemp: number;
+  soilTempSurface: number;
   conditions: string;
   feelsLike: number;
+  uvIndex: number;
+  precipitation: number;
+  pressure: number;
+  dewPoint: number;
+  lastUpdated: string;
 }
 
 interface SoilTempData {
@@ -91,8 +105,14 @@ const defaultWeatherData: WeatherData = {
   humidity: 0,
   wind: 0,
   soilTemp: 0,
+  soilTempSurface: 0,
   conditions: "Loading...",
   feelsLike: 0,
+  uvIndex: 0,
+  precipitation: 0,
+  pressure: 0,
+  dewPoint: 0,
+  lastUpdated: "",
 };
 
 const severityStyles = {
@@ -135,11 +155,16 @@ export function WeatherAlerts() {
   const [manageDialogOpen, setManageDialogOpen] = useState(false);
   const [scheduledNotifications, setScheduledNotifications] = useState<ScheduledNotification[]>([]);
   const [schedulingNotifications, setSchedulingNotifications] = useState(false);
+  const [notificationHelpOpen, setNotificationHelpOpen] = useState(false);
   const [notificationSettings, setNotificationSettings] = useState({
     diseaseAlerts: true,
     insectAlerts: true,
     weatherAlerts: true,
     treatmentReminders: true,
+    dailyDigest: false,
+    weeklyReport: true,
+    preferredTime: "08:00",
+    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
   });
   const { toast } = useToast();
   const { user } = useAuth();
@@ -160,9 +185,59 @@ export function WeatherAlerts() {
     }
   };
 
+  // Fetch notification preferences
+  const fetchNotificationPreferences = async () => {
+    if (!user) return;
+    
+    const { data, error } = await supabase
+      .from("notification_preferences")
+      .select("*")
+      .eq("user_id", user.id)
+      .single();
+
+    if (!error && data) {
+      setNotificationSettings({
+        diseaseAlerts: data.disease_alerts,
+        insectAlerts: data.insect_alerts,
+        weatherAlerts: data.weather_alerts,
+        treatmentReminders: data.treatment_reminders,
+        dailyDigest: data.daily_digest,
+        weeklyReport: data.weekly_report,
+        preferredTime: data.preferred_time?.slice(0, 5) || "08:00",
+        timezone: data.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
+      });
+      setNotificationsEnabled(data.browser_notifications_enabled);
+    }
+  };
+
+  // Save notification preferences
+  const saveNotificationPreferences = async () => {
+    if (!user) return false;
+
+    const { error } = await supabase
+      .from("notification_preferences")
+      .upsert({
+        user_id: user.id,
+        disease_alerts: notificationSettings.diseaseAlerts,
+        insect_alerts: notificationSettings.insectAlerts,
+        weather_alerts: notificationSettings.weatherAlerts,
+        treatment_reminders: notificationSettings.treatmentReminders,
+        daily_digest: notificationSettings.dailyDigest,
+        weekly_report: notificationSettings.weeklyReport,
+        preferred_time: notificationSettings.preferredTime + ":00",
+        timezone: notificationSettings.timezone,
+        browser_notifications_enabled: notificationsEnabled,
+      }, {
+        onConflict: 'user_id'
+      });
+
+    return !error;
+  };
+
   useEffect(() => {
     if (user) {
       fetchScheduledNotifications();
+      fetchNotificationPreferences();
     }
   }, [user]);
 
@@ -196,23 +271,12 @@ export function WeatherAlerts() {
     }
   };
 
-  // Schedule notifications based on AI analysis
+  // Schedule notifications based on AI analysis - saves directly to Supabase
   const handleScheduleNotifications = async () => {
     if (!user) {
       toast({
         title: "Sign In Required",
         description: "Please sign in to schedule notifications.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    // Verify we have a valid session
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) {
-      toast({
-        title: "Session Expired",
-        description: "Please sign in again to schedule notifications.",
         variant: "destructive",
       });
       return;
@@ -229,27 +293,96 @@ export function WeatherAlerts() {
 
     setSchedulingNotifications(true);
     try {
-      const { data, error } = await supabase.functions.invoke("schedule-notifications", {
-        body: { aiAnalysis, weatherData },
+      const now = new Date();
+      const notifications: Array<{
+        user_id: string;
+        title: string;
+        message: string;
+        category: string;
+        priority: string;
+        scheduled_for: string;
+        weather_context: object;
+      }> = [];
+
+      // Schedule notifications based on recommendations
+      aiAnalysis.recommendations.forEach((rec, index) => {
+        const scheduledDate = new Date(now);
+        
+        if (rec.priority === "high") {
+          scheduledDate.setHours(scheduledDate.getHours() + 2);
+        } else if (rec.priority === "medium") {
+          scheduledDate.setDate(scheduledDate.getDate() + 1);
+          scheduledDate.setHours(8, 0, 0, 0);
+        } else {
+          scheduledDate.setDate(scheduledDate.getDate() + 2 + index);
+          scheduledDate.setHours(9, 0, 0, 0);
+        }
+
+        notifications.push({
+          user_id: user.id,
+          title: rec.title,
+          message: rec.description,
+          category: rec.category,
+          priority: rec.priority,
+          scheduled_for: scheduledDate.toISOString(),
+          weather_context: {
+            temp: weatherData.temp,
+            humidity: weatherData.humidity,
+            soilTemp: weatherData.soilTemp,
+            conditions: weatherData.conditions,
+            location: weatherData.location,
+            analyzedAt: now.toISOString(),
+          },
+        });
       });
 
-      if (error) {
-        console.error("Schedule notifications error details:", error);
-        // Check if it's an auth error
-        if (error.message?.includes("401") || error.message?.includes("Unauthorized") || error.message?.includes("non-2xx")) {
-          toast({
-            title: "Authentication Error",
-            description: "Please sign in again and try once more.",
-            variant: "destructive",
+      // Also schedule alert notifications
+      if (aiAnalysis.alerts && aiAnalysis.alerts.length > 0) {
+        aiAnalysis.alerts.forEach((alert) => {
+          const scheduledDate = new Date(now);
+          if (alert.type === "warning") {
+            scheduledDate.setHours(scheduledDate.getHours() + 1);
+          } else if (alert.type === "caution") {
+            scheduledDate.setHours(scheduledDate.getHours() + 4);
+          } else {
+            scheduledDate.setDate(scheduledDate.getDate() + 1);
+            scheduledDate.setHours(10, 0, 0, 0);
+          }
+
+          notifications.push({
+            user_id: user.id,
+            title: alert.type === "warning" ? "⚠️ Urgent Alert" : 
+                   alert.type === "caution" ? "⚡ Caution" : "💡 Lawn Tip",
+            message: alert.message,
+            category: alert.type,
+            priority: alert.type === "warning" ? "high" : 
+                     alert.type === "caution" ? "medium" : "low",
+            scheduled_for: scheduledDate.toISOString(),
+            weather_context: {
+              temp: weatherData.temp,
+              humidity: weatherData.humidity,
+              soilTemp: weatherData.soilTemp,
+              conditions: weatherData.conditions,
+              location: weatherData.location,
+              analyzedAt: now.toISOString(),
+            },
           });
-          return;
-        }
-        throw error;
+        });
+      }
+
+      // Insert directly into Supabase
+      const { error: insertError } = await supabase
+        .from("notification_schedules")
+        .insert(notifications);
+
+      if (insertError) {
+        console.error("Error inserting notifications:", insertError);
+        throw new Error(insertError.message);
       }
 
       toast({
-        title: "Notifications Scheduled",
-        description: `${data.scheduledCount} smart notifications have been scheduled based on current conditions.`,
+        title: "Notifications Scheduled! 🎉",
+        description: `${notifications.length} smart notifications have been scheduled based on current conditions.`,
       });
 
       // Refresh the notifications list
@@ -270,8 +403,9 @@ export function WeatherAlerts() {
   useEffect(() => {
     const fetchWeatherData = async (lat: number, lon: number) => {
       try {
+        // Enhanced API call with more parameters for accurate real-time data
         const response = await fetch(
-          `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m&hourly=soil_temperature_6cm&past_days=7&forecast_days=1&temperature_unit=fahrenheit&wind_speed_unit=mph`
+          `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m,surface_pressure,uv_index,precipitation,dew_point_2m&hourly=soil_temperature_0cm,soil_temperature_6cm,soil_temperature_18cm,soil_moisture_0_to_1cm&past_days=7&forecast_days=1&temperature_unit=fahrenheit&wind_speed_unit=mph&timezone=auto`
         );
         const data = await response.json();
         
@@ -279,22 +413,36 @@ export function WeatherAlerts() {
         const weatherCode = data.current.weather_code;
         const conditions = getWeatherCondition(weatherCode);
         
-        const soilTemps = data.hourly.soil_temperature_6cm.slice(-168);
+        // Get soil temperatures at 6cm depth (most relevant for lawn root zone)
+        const soilTemps6cm = data.hourly.soil_temperature_6cm.slice(-168); // Last 7 days
+        const soilTempsSurface = data.hourly.soil_temperature_0cm.slice(-168);
+        
+        // Calculate daily averages for the chart
         const dailySoilTemps: number[] = [];
         for (let i = 0; i < 7; i++) {
-          const dayTemps = soilTemps.slice(i * 24, (i + 1) * 24);
+          const dayTemps = soilTemps6cm.slice(i * 24, (i + 1) * 24);
           const avgTemp = Math.round(dayTemps.reduce((a: number, b: number) => a + b, 0) / dayTemps.length);
           dailySoilTemps.push(avgTemp);
         }
         
-        const newWeatherData = {
+        // Get current soil temps (most recent reading)
+        const currentSoilTemp6cm = soilTemps6cm[soilTemps6cm.length - 1] || 0;
+        const currentSoilTempSurface = soilTempsSurface[soilTempsSurface.length - 1] || 0;
+        
+        const newWeatherData: WeatherData = {
           location: locationName,
           temp: Math.round(data.current.temperature_2m),
           humidity: Math.round(data.current.relative_humidity_2m),
           wind: Math.round(data.current.wind_speed_10m),
-          soilTemp: dailySoilTemps[dailySoilTemps.length - 1] || 0,
+          soilTemp: Math.round(currentSoilTemp6cm),
+          soilTempSurface: Math.round(currentSoilTempSurface),
           conditions,
           feelsLike: Math.round(data.current.apparent_temperature),
+          uvIndex: Math.round(data.current.uv_index || 0),
+          precipitation: data.current.precipitation || 0,
+          pressure: Math.round(data.current.surface_pressure || 0),
+          dewPoint: Math.round(data.current.dew_point_2m || 0),
+          lastUpdated: new Date().toLocaleTimeString(),
         };
         
         setWeatherData(newWeatherData);
@@ -316,8 +464,10 @@ export function WeatherAlerts() {
         },
         (error) => {
           console.error("Geolocation error:", error);
+          // Default to Austin, TX
           fetchWeatherData(30.2672, -97.7431);
-        }
+        },
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 300000 }
       );
     } else {
       fetchWeatherData(30.2672, -97.7431);
@@ -358,30 +508,101 @@ export function WeatherAlerts() {
   };
 
   const handleEnableNotifications = async () => {
-    if ("Notification" in window) {
+    if (!("Notification" in window)) {
+      toast({
+        title: "Not Supported",
+        description: "Your browser doesn't support notifications.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Check current permission state
+    const currentPermission = Notification.permission;
+    
+    if (currentPermission === "denied") {
+      // Permission was previously denied - show help dialog
+      setNotificationHelpOpen(true);
+      return;
+    }
+    
+    if (currentPermission === "granted") {
+      // Already granted
+      setNotificationsEnabled(true);
+      toast({
+        title: "Notifications Already Enabled",
+        description: "You're all set to receive lawn care alerts!",
+      });
+      return;
+    }
+    
+    // Permission is "default" - request it
+    try {
       const permission = await Notification.requestPermission();
       if (permission === "granted") {
         setNotificationsEnabled(true);
+        
+        // Save the preference if user is logged in
+        if (user) {
+          await supabase
+            .from("notification_preferences")
+            .upsert({
+              user_id: user.id,
+              browser_notifications_enabled: true,
+              disease_alerts: notificationSettings.diseaseAlerts,
+              insect_alerts: notificationSettings.insectAlerts,
+              weather_alerts: notificationSettings.weatherAlerts,
+              treatment_reminders: notificationSettings.treatmentReminders,
+              daily_digest: notificationSettings.dailyDigest,
+              weekly_report: notificationSettings.weeklyReport,
+              preferred_time: notificationSettings.preferredTime + ":00",
+              timezone: notificationSettings.timezone,
+            }, {
+              onConflict: 'user_id'
+            });
+        }
+        
         toast({
           title: "Notifications Enabled",
           description: "You'll receive alerts when conditions favor disease or pests.",
         });
+        
+        // Show a test notification
+        new Notification("Lawn Guardian", {
+          body: "Smart notifications are now enabled! You'll receive alerts about lawn conditions.",
+          icon: "/favicon.ico",
+        });
+      } else {
+        // User denied the permission prompt
+        setNotificationHelpOpen(true);
+      }
+    } catch (error) {
+      console.error("Notification permission error:", error);
+      toast({
+        title: "Error",
+        description: "Something went wrong. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleSaveSettings = async () => {
+    if (user) {
+      const success = await saveNotificationPreferences();
+      if (success) {
+        toast({
+          title: "Settings Saved",
+          description: "Your notification preferences have been updated.",
+        });
       } else {
         toast({
-          title: "Permission Denied",
-          description: "Please enable notifications in your browser settings.",
+          title: "Error Saving Settings",
+          description: "Could not save your preferences. Please try again.",
           variant: "destructive",
         });
       }
     }
-  };
-
-  const handleSaveSettings = () => {
     setManageDialogOpen(false);
-    toast({
-      title: "Settings Saved",
-      description: "Your notification preferences have been updated.",
-    });
   };
 
   const markNotificationAsRead = async (notificationId: string) => {
@@ -472,55 +693,125 @@ export function WeatherAlerts() {
               </div>
 
               <CardContent className="pt-6">
-                {/* Weather Metrics */}
-                <div className="grid grid-cols-2 gap-4">
+                {/* Last Updated Time */}
+                {weatherData.lastUpdated && (
+                  <div className="flex items-center justify-between mb-4 text-xs text-muted-foreground">
+                    <span className="flex items-center gap-1">
+                      <Clock className="w-3 h-3" />
+                      Last updated: {weatherData.lastUpdated}
+                    </span>
+                    <span className="text-lawn-600 font-medium">Live Data</span>
+                  </div>
+                )}
+                
+                {/* Primary Weather Metrics */}
+                <div className="grid grid-cols-2 gap-3">
                   {[
                     {
                       icon: Droplets,
                       label: "Humidity",
                       value: `${weatherData.humidity}%`,
+                      subtext: weatherData.humidity > 70 ? "High - Disease risk" : weatherData.humidity < 30 ? "Low - Water needed" : "Optimal",
                     },
                     {
                       icon: Wind,
                       label: "Wind",
                       value: `${weatherData.wind} mph`,
+                      subtext: weatherData.wind > 15 ? "Don't spray" : "Good for spraying",
                     },
                     {
                       icon: ThermometerSun,
-                      label: "Soil Temp",
+                      label: "Soil (6\" depth)",
                       value: `${weatherData.soilTemp}°F`,
+                      subtext: weatherData.soilTemp > 70 ? "Grub active" : weatherData.soilTemp > 55 ? "Pre-emergent time" : "Dormant",
                     },
                     {
                       icon: Thermometer,
                       label: "Feels Like",
                       value: `${weatherData.feelsLike}°F`,
+                      subtext: weatherData.feelsLike > 85 ? "Heat stress risk" : "Comfortable",
                     },
                   ].map((metric) => (
                     <div
                       key={metric.label}
                       className="flex items-center gap-3 p-3 rounded-xl bg-lawn-50"
                     >
-                      <div className="w-10 h-10 rounded-lg bg-lawn-100 flex items-center justify-center">
+                      <div className="w-10 h-10 rounded-lg bg-lawn-100 flex items-center justify-center shrink-0">
                         <metric.icon className="w-5 h-5 text-primary" />
                       </div>
-                      <div>
+                      <div className="min-w-0">
                         <p className="text-xs text-muted-foreground">
                           {metric.label}
                         </p>
                         <p className="font-semibold text-foreground">
                           {metric.value}
                         </p>
+                        <p className="text-[10px] text-muted-foreground truncate">
+                          {metric.subtext}
+                        </p>
                       </div>
                     </div>
                   ))}
                 </div>
+                
+                {/* Secondary Metrics Row */}
+                <div className="grid grid-cols-3 gap-2 mt-3">
+                  <div className="flex items-center gap-2 p-2 rounded-lg bg-lawn-50/50 text-center">
+                    <Sun className="w-4 h-4 text-warning" />
+                    <div>
+                      <p className="text-[10px] text-muted-foreground">UV Index</p>
+                      <p className="text-sm font-medium">{weatherData.uvIndex}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 p-2 rounded-lg bg-lawn-50/50 text-center">
+                    <CloudRain className="w-4 h-4 text-sky" />
+                    <div>
+                      <p className="text-[10px] text-muted-foreground">Precip</p>
+                      <p className="text-sm font-medium">{weatherData.precipitation}″</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 p-2 rounded-lg bg-lawn-50/50 text-center">
+                    <Gauge className="w-4 h-4 text-muted-foreground" />
+                    <div>
+                      <p className="text-[10px] text-muted-foreground">Pressure</p>
+                      <p className="text-sm font-medium">{weatherData.pressure}</p>
+                    </div>
+                  </div>
+                </div>
 
                 {/* Soil Temp Timeline */}
-                <div className="mt-6 p-4 rounded-xl bg-lawn-50">
-                  <p className="text-sm font-semibold text-foreground mb-3">
-                    Soil Temperature Trend
-                  </p>
-                <div className="flex items-end justify-between h-28 gap-2">
+                <div className="mt-4 p-4 rounded-xl bg-lawn-50">
+                  <div className="flex items-center justify-between mb-3">
+                    <p className="text-sm font-semibold text-foreground">
+                      Soil Temperature Trend (7 Days)
+                    </p>
+                    {displaySoilTemps.length >= 2 && (
+                      <div className="flex items-center gap-1">
+                        {displaySoilTemps[displaySoilTemps.length - 1] > displaySoilTemps[displaySoilTemps.length - 2] ? (
+                          <>
+                            <TrendingUp className="w-4 h-4 text-alert" />
+                            <span className="text-xs text-alert font-medium">Rising</span>
+                          </>
+                        ) : displaySoilTemps[displaySoilTemps.length - 1] < displaySoilTemps[displaySoilTemps.length - 2] ? (
+                          <>
+                            <TrendingDown className="w-4 h-4 text-sky" />
+                            <span className="text-xs text-sky font-medium">Cooling</span>
+                          </>
+                        ) : (
+                          <span className="text-xs text-muted-foreground font-medium">Stable</span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                  
+                  {/* Temperature threshold indicators */}
+                  <div className="flex gap-2 mb-3 text-[10px]">
+                    <span className="px-2 py-0.5 rounded bg-alert/10 text-alert">70°+ Grub Active</span>
+                    <span className="px-2 py-0.5 rounded bg-warning/10 text-warning">55-70° Pre-emergent</span>
+                    <span className="px-2 py-0.5 rounded bg-sky/10 text-sky">&lt;55° Dormant</span>
+                  </div>
+                  
+                  <div className="flex items-end justify-between h-28 gap-2">
                     {displaySoilTemps.map((temp, i) => {
                       const dayLabels = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
                       const today = new Date();
@@ -528,18 +819,27 @@ export function WeatherAlerts() {
                       const dayIndex = dateForDay.getDay();
                       const month = dateForDay.getMonth() + 1;
                       const day = dateForDay.getDate();
+                      const isToday = i === displaySoilTemps.length - 1;
+                      
+                      // Color based on temperature threshold
+                      const barColor = temp >= 70 
+                        ? "bg-gradient-to-t from-alert/80 to-alert" 
+                        : temp >= 55 
+                        ? "bg-gradient-to-t from-warning/80 to-warning" 
+                        : "bg-gradient-to-t from-sky/80 to-sky";
+                      
                       return (
                         <div key={i} className="flex-1 flex flex-col items-center">
-                          <span className="text-xs text-muted-foreground mb-1 font-medium">
+                          <span className={`text-xs mb-1 font-medium ${isToday ? "text-foreground" : "text-muted-foreground"}`}>
                             {temp}°
                           </span>
                           <div
-                            className="w-full rounded-t-md gradient-lawn transition-all duration-300 hover:opacity-80 cursor-pointer"
+                            className={`w-full rounded-t-md transition-all duration-300 hover:opacity-80 cursor-pointer ${barColor} ${isToday ? "ring-2 ring-primary ring-offset-1" : ""}`}
                             style={{ height: `${((temp - minTemp + 5) / (maxTemp - minTemp + 10)) * 100}%`, minHeight: "24%" }}
-                            title={`${dayLabels[dayIndex]}: ${temp}°F`}
+                            title={`${dayLabels[dayIndex]}: ${temp}°F at 6" depth`}
                           />
-                          <span className="text-[10px] text-muted-foreground mt-1 font-medium">
-                            {dayLabels[dayIndex]}
+                          <span className={`text-[10px] mt-1 font-medium ${isToday ? "text-foreground" : "text-muted-foreground"}`}>
+                            {isToday ? "Today" : dayLabels[dayIndex]}
                           </span>
                           <span className="text-[9px] text-muted-foreground font-medium">
                             {month}/{day}
@@ -547,6 +847,18 @@ export function WeatherAlerts() {
                         </div>
                       );
                     })}
+                  </div>
+                  
+                  {/* Lawn care insight based on soil temp */}
+                  <div className="mt-3 p-2 rounded-lg bg-card border border-lawn-200">
+                    <p className="text-xs text-muted-foreground">
+                      <span className="font-semibold text-foreground">Insight:</span>{" "}
+                      {weatherData.soilTemp >= 70 
+                        ? "Soil is warm - grubs are active in root zone. Good time for grub treatment if you see damage."
+                        : weatherData.soilTemp >= 55 
+                        ? "Prime time for pre-emergent herbicide application before weed seeds germinate."
+                        : "Soil is cool - grass is dormant or slow growing. Avoid fertilizing until temperatures rise."}
+                    </p>
                   </div>
                 </div>
               </CardContent>
@@ -743,66 +1055,139 @@ export function WeatherAlerts() {
               </TabsTrigger>
             </TabsList>
             
-            <TabsContent value="settings" className="space-y-6 py-4">
-              <div className="flex items-center justify-between">
-                <Label htmlFor="disease-alerts" className="flex flex-col gap-1">
-                  <span>Disease Alerts</span>
-                  <span className="text-xs text-muted-foreground font-normal">
-                    Get notified when conditions favor disease outbreaks
-                  </span>
-                </Label>
-                <Switch
-                  id="disease-alerts"
-                  checked={notificationSettings.diseaseAlerts}
-                  onCheckedChange={(checked) =>
-                    setNotificationSettings((prev) => ({ ...prev, diseaseAlerts: checked }))
-                  }
-                />
+            <TabsContent value="settings" className="space-y-4 py-4">
+              <div className="space-y-4">
+                <h4 className="text-sm font-semibold text-foreground">Alert Types</h4>
+                
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="disease-alerts" className="flex flex-col gap-1">
+                    <span>Disease Alerts</span>
+                    <span className="text-xs text-muted-foreground font-normal">
+                      Get notified when conditions favor disease outbreaks
+                    </span>
+                  </Label>
+                  <Switch
+                    id="disease-alerts"
+                    checked={notificationSettings.diseaseAlerts}
+                    onCheckedChange={(checked) =>
+                      setNotificationSettings((prev) => ({ ...prev, diseaseAlerts: checked }))
+                    }
+                  />
+                </div>
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="insect-alerts" className="flex flex-col gap-1">
+                    <span>Insect Alerts</span>
+                    <span className="text-xs text-muted-foreground font-normal">
+                      Get notified about pest activity in your area
+                    </span>
+                  </Label>
+                  <Switch
+                    id="insect-alerts"
+                    checked={notificationSettings.insectAlerts}
+                    onCheckedChange={(checked) =>
+                      setNotificationSettings((prev) => ({ ...prev, insectAlerts: checked }))
+                    }
+                  />
+                </div>
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="weather-alerts" className="flex flex-col gap-1">
+                    <span>Weather Alerts</span>
+                    <span className="text-xs text-muted-foreground font-normal">
+                      Get notified about weather changes affecting your lawn
+                    </span>
+                  </Label>
+                  <Switch
+                    id="weather-alerts"
+                    checked={notificationSettings.weatherAlerts}
+                    onCheckedChange={(checked) =>
+                      setNotificationSettings((prev) => ({ ...prev, weatherAlerts: checked }))
+                    }
+                  />
+                </div>
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="treatment-reminders" className="flex flex-col gap-1">
+                    <span>Treatment Reminders</span>
+                    <span className="text-xs text-muted-foreground font-normal">
+                      Get reminded when treatments are due
+                    </span>
+                  </Label>
+                  <Switch
+                    id="treatment-reminders"
+                    checked={notificationSettings.treatmentReminders}
+                    onCheckedChange={(checked) =>
+                      setNotificationSettings((prev) => ({ ...prev, treatmentReminders: checked }))
+                    }
+                  />
+                </div>
               </div>
-              <div className="flex items-center justify-between">
-                <Label htmlFor="insect-alerts" className="flex flex-col gap-1">
-                  <span>Insect Alerts</span>
-                  <span className="text-xs text-muted-foreground font-normal">
-                    Get notified about pest activity in your area
-                  </span>
-                </Label>
-                <Switch
-                  id="insect-alerts"
-                  checked={notificationSettings.insectAlerts}
-                  onCheckedChange={(checked) =>
-                    setNotificationSettings((prev) => ({ ...prev, insectAlerts: checked }))
-                  }
-                />
-              </div>
-              <div className="flex items-center justify-between">
-                <Label htmlFor="weather-alerts" className="flex flex-col gap-1">
-                  <span>Weather Alerts</span>
-                  <span className="text-xs text-muted-foreground font-normal">
-                    Get notified about weather changes affecting your lawn
-                  </span>
-                </Label>
-                <Switch
-                  id="weather-alerts"
-                  checked={notificationSettings.weatherAlerts}
-                  onCheckedChange={(checked) =>
-                    setNotificationSettings((prev) => ({ ...prev, weatherAlerts: checked }))
-                  }
-                />
-              </div>
-              <div className="flex items-center justify-between">
-                <Label htmlFor="treatment-reminders" className="flex flex-col gap-1">
-                  <span>Treatment Reminders</span>
-                  <span className="text-xs text-muted-foreground font-normal">
-                    Get reminded when treatments are due
-                  </span>
-                </Label>
-                <Switch
-                  id="treatment-reminders"
-                  checked={notificationSettings.treatmentReminders}
-                  onCheckedChange={(checked) =>
-                    setNotificationSettings((prev) => ({ ...prev, treatmentReminders: checked }))
-                  }
-                />
+              
+              <div className="border-t border-lawn-100 pt-4 space-y-4">
+                <h4 className="text-sm font-semibold text-foreground">Scheduling</h4>
+                
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="daily-digest" className="flex flex-col gap-1">
+                    <span>Daily Digest</span>
+                    <span className="text-xs text-muted-foreground font-normal">
+                      Receive a daily summary of conditions and tasks
+                    </span>
+                  </Label>
+                  <Switch
+                    id="daily-digest"
+                    checked={notificationSettings.dailyDigest}
+                    onCheckedChange={(checked) =>
+                      setNotificationSettings((prev) => ({ ...prev, dailyDigest: checked }))
+                    }
+                  />
+                </div>
+                
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="weekly-report" className="flex flex-col gap-1">
+                    <span>Weekly Report</span>
+                    <span className="text-xs text-muted-foreground font-normal">
+                      Get a weekly lawn health summary every Sunday
+                    </span>
+                  </Label>
+                  <Switch
+                    id="weekly-report"
+                    checked={notificationSettings.weeklyReport}
+                    onCheckedChange={(checked) =>
+                      setNotificationSettings((prev) => ({ ...prev, weeklyReport: checked }))
+                    }
+                  />
+                </div>
+                
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="preferred-time" className="flex flex-col gap-1">
+                    <span>Preferred Time</span>
+                    <span className="text-xs text-muted-foreground font-normal">
+                      When to receive scheduled notifications
+                    </span>
+                  </Label>
+                  <select
+                    id="preferred-time"
+                    value={notificationSettings.preferredTime}
+                    onChange={(e) =>
+                      setNotificationSettings((prev) => ({ ...prev, preferredTime: e.target.value }))
+                    }
+                    className="px-3 py-1.5 rounded-md border border-input bg-background text-sm"
+                  >
+                    <option value="06:00">6:00 AM</option>
+                    <option value="07:00">7:00 AM</option>
+                    <option value="08:00">8:00 AM</option>
+                    <option value="09:00">9:00 AM</option>
+                    <option value="10:00">10:00 AM</option>
+                    <option value="17:00">5:00 PM</option>
+                    <option value="18:00">6:00 PM</option>
+                    <option value="19:00">7:00 PM</option>
+                  </select>
+                </div>
+                
+                <div className="p-3 rounded-lg bg-lawn-50 border border-lawn-100">
+                  <p className="text-xs text-muted-foreground">
+                    <span className="font-medium text-foreground">Your timezone:</span>{" "}
+                    {notificationSettings.timezone}
+                  </p>
+                </div>
               </div>
             </TabsContent>
             
@@ -873,6 +1258,77 @@ export function WeatherAlerts() {
               Cancel
             </Button>
             <Button onClick={handleSaveSettings}>Save Settings</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Notification Help Dialog */}
+      <Dialog open={notificationHelpOpen} onOpenChange={setNotificationHelpOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <HelpCircle className="w-5 h-5 text-primary" />
+              Enable Browser Notifications
+            </DialogTitle>
+            <DialogDescription>
+              Notifications were blocked. Follow these steps to enable them:
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-2">
+            <div className="p-4 rounded-xl bg-lawn-50 border border-lawn-100">
+              <h4 className="font-semibold text-foreground mb-3 flex items-center gap-2">
+                <span className="w-6 h-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-bold">1</span>
+                Click the lock/info icon
+              </h4>
+              <p className="text-sm text-muted-foreground ml-8">
+                Look for the 🔒 or ℹ️ icon in your browser's address bar (left side of the URL).
+              </p>
+            </div>
+            
+            <div className="p-4 rounded-xl bg-lawn-50 border border-lawn-100">
+              <h4 className="font-semibold text-foreground mb-3 flex items-center gap-2">
+                <span className="w-6 h-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-bold">2</span>
+                Find "Notifications"
+              </h4>
+              <p className="text-sm text-muted-foreground ml-8">
+                In the site settings popup, look for "Notifications" and change it from "Block" to "Allow".
+              </p>
+            </div>
+            
+            <div className="p-4 rounded-xl bg-lawn-50 border border-lawn-100">
+              <h4 className="font-semibold text-foreground mb-3 flex items-center gap-2">
+                <span className="w-6 h-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-bold">3</span>
+                Refresh the page
+              </h4>
+              <p className="text-sm text-muted-foreground ml-8">
+                After enabling notifications, refresh this page and click "Enable" again.
+              </p>
+            </div>
+            
+            <div className="p-3 rounded-lg bg-muted/50 border">
+              <p className="text-xs text-muted-foreground">
+                <span className="font-medium">Tip:</span> On mobile devices, you may need to add this site to your home screen first to enable notifications.
+              </p>
+            </div>
+          </div>
+          
+          <div className="flex flex-col gap-2 pt-2">
+            <Button 
+              onClick={() => {
+                setNotificationHelpOpen(false);
+                window.location.reload();
+              }}
+            >
+              <RefreshCw className="w-4 h-4 mr-2" />
+              Refresh Page
+            </Button>
+            <Button 
+              variant="outline" 
+              onClick={() => setNotificationHelpOpen(false)}
+            >
+              Close
+            </Button>
           </div>
         </DialogContent>
       </Dialog>

@@ -1,5 +1,5 @@
 import { useState, useRef } from "react";
-import { Camera, Upload, X, Loader2, Sparkles, CheckCircle2, AlertCircle } from "lucide-react";
+import { Camera, Upload, X, Loader2, Sparkles, CheckCircle2, AlertCircle, Leaf, Bug, FlaskConical } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { LawnAnalysisResult } from "@/types/lawn-analysis";
 import { AnalysisResults } from "@/components/AnalysisResults";
 import { useAuth } from "@/hooks/useAuth";
+import { diagnoseLawn } from "@/services/lawnDiagnosisService";
 
 export function ScanUpload() {
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
@@ -30,46 +31,73 @@ export function ScanUpload() {
       const file = files[0];
       const reader = new FileReader();
       reader.onloadend = () => {
-        setSelectedImage(reader.result as string);
+        const imageData = reader.result as string;
+        setSelectedImage(imageData);
         setAnalysisResult(null);
+        // Automatically start analysis when photo is uploaded
+        handleAnalyzeImage(imageData);
       };
       reader.readAsDataURL(file);
     }
   };
 
-  const handleAnalyze = async () => {
-    if (!selectedImage) return;
+  const handleAnalyzeImage = async (imageData: string) => {
+    if (!imageData) return;
 
     setIsAnalyzing(true);
+    toast.info('Analyzing your lawn photo...', { duration: 2000 });
+    
     try {
-      const { data, error } = await supabase.functions.invoke('analyze-lawn', {
-        body: {
-          imageBase64: selectedImage,
-          grassType,
-          season: getCurrentSeason(),
-          location: "United States",
-        },
+      // Try the new unified diagnosis service first (Plant.id + Treatment DB)
+      const result = await diagnoseLawn({
+        imageBase64: imageData,
+        grassType,
+        season: getCurrentSeason(),
+        location: "United States",
       });
 
-      if (error) {
-        console.error('Analysis error:', error);
-        toast.error('Failed to analyze image. Please try again.');
-        return;
-      }
+      setAnalysisResult(result);
+      toast.success('Analysis complete! Powered by Plant.id API');
+    } catch (diagnosisError) {
+      console.log('Using fallback analysis...', diagnosisError);
+      
+      // Fallback to the original AI analysis
+      try {
+        const { data, error } = await supabase.functions.invoke('analyze-lawn', {
+          body: {
+            imageBase64: imageData,
+            grassType,
+            season: getCurrentSeason(),
+            location: "United States",
+          },
+        });
 
-      if (data.error) {
-        console.error('API error:', data.error);
-        toast.error(data.error);
-        return;
-      }
+        if (error) {
+          console.error('Analysis error:', error);
+          toast.error('Failed to analyze image. Please try again.');
+          return;
+        }
 
-      setAnalysisResult(data);
-      toast.success('Analysis complete!');
-    } catch (error) {
-      console.error('Error:', error);
-      toast.error('An unexpected error occurred. Please try again.');
+        if (data.error) {
+          console.error('API error:', data.error);
+          toast.error(data.error);
+          return;
+        }
+
+        setAnalysisResult(data);
+        toast.success('Analysis complete!');
+      } catch (fallbackError) {
+        console.error('Error:', fallbackError);
+        toast.error('An unexpected error occurred. Please try again.');
+      }
     } finally {
       setIsAnalyzing(false);
+    }
+  };
+
+  const handleAnalyze = () => {
+    if (selectedImage) {
+      handleAnalyzeImage(selectedImage);
     }
   };
 
@@ -139,9 +167,24 @@ export function ScanUpload() {
             <h2 className="font-heading text-3xl md:text-4xl font-bold text-foreground mb-4">
               Scan Your Lawn Problem
             </h2>
-            <p className="text-muted-foreground">
+            <p className="text-muted-foreground mb-4">
               Upload a clear, well-lit photo of the affected area for accurate AI diagnosis
             </p>
+            {/* Powered By Badge */}
+            <div className="flex flex-wrap items-center justify-center gap-2">
+              <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-lawn-100 dark:bg-lawn-900 text-xs font-medium text-lawn-700 dark:text-lawn-300">
+                <Leaf className="w-3.5 h-3.5" />
+                Plant.id API
+              </div>
+              <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-100 dark:bg-amber-900 text-xs font-medium text-amber-700 dark:text-amber-300">
+                <Bug className="w-3.5 h-3.5" />
+                Pest Detection
+              </div>
+              <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-blue-100 dark:bg-blue-900 text-xs font-medium text-blue-700 dark:text-blue-300">
+                <FlaskConical className="w-3.5 h-3.5" />
+                Expert Treatments
+              </div>
+            </div>
           </div>
 
           {/* Photo Tips Card */}
@@ -229,19 +272,49 @@ export function ScanUpload() {
                 </div>
               ) : (
                 <div className="p-6">
-                  {/* Selected Image Preview */}
+                  {/* Selected Image Preview with Analyzing Overlay */}
                   <div className="relative aspect-video rounded-xl overflow-hidden mb-6 group">
                     <img
                       src={selectedImage}
                       alt="Lawn photo"
-                      className="w-full h-full object-cover"
+                      className={`w-full h-full object-cover transition-all duration-300 ${isAnalyzing ? 'scale-105 blur-sm' : ''}`}
                     />
-                    <button
-                      onClick={clearImage}
-                      className="absolute top-3 right-3 w-10 h-10 rounded-full bg-card/90 backdrop-blur-sm flex items-center justify-center hover:bg-card transition-colors shadow-lawn"
-                    >
-                      <X className="w-5 h-5 text-foreground" />
-                    </button>
+                    
+                    {/* Analyzing Overlay */}
+                    {isAnalyzing && (
+                      <div className="absolute inset-0 bg-gradient-to-b from-lawn-900/80 via-lawn-800/70 to-lawn-900/80 flex flex-col items-center justify-center">
+                        <div className="relative">
+                          {/* Pulsing rings */}
+                          <div className="absolute inset-0 w-20 h-20 rounded-full bg-lawn-400/30 animate-ping" />
+                          <div className="absolute inset-2 w-16 h-16 rounded-full bg-lawn-400/40 animate-ping" style={{ animationDelay: '0.2s' }} />
+                          <div className="relative w-20 h-20 rounded-full bg-gradient-to-br from-lawn-400 to-lawn-600 flex items-center justify-center shadow-lg">
+                            <Sparkles className="w-10 h-10 text-white animate-pulse" />
+                          </div>
+                        </div>
+                        <p className="mt-6 text-white font-semibold text-lg">Analyzing your lawn...</p>
+                        <p className="text-lawn-200 text-sm mt-1">Powered by Plant.id API</p>
+                        <div className="flex items-center gap-3 mt-4">
+                          <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/10 text-xs text-white">
+                            <Leaf className="w-3 h-3" />
+                            Identifying plants
+                          </div>
+                          <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/10 text-xs text-white">
+                            <Bug className="w-3 h-3" />
+                            Detecting issues
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* Close button - only show when not analyzing */}
+                    {!isAnalyzing && (
+                      <button
+                        onClick={clearImage}
+                        className="absolute top-3 right-3 w-10 h-10 rounded-full bg-card/90 backdrop-blur-sm flex items-center justify-center hover:bg-card transition-colors shadow-lawn"
+                      >
+                        <X className="w-5 h-5 text-foreground" />
+                      </button>
+                    )}
                   </div>
 
                   <input
@@ -252,39 +325,39 @@ export function ScanUpload() {
                     onChange={handleFileSelect}
                   />
 
-                  {/* Action Buttons */}
-                  <div className="flex gap-3">
-                    <Button
-                      variant="secondary"
-                      onClick={() => fileInputRef.current?.click()}
-                      className="flex-1"
-                    >
-                      <Upload className="w-4 h-4" />
-                      Change Photo
-                    </Button>
-                    <Button
-                      variant="scan"
-                      size="lg"
-                      className="flex-[2]"
-                      onClick={handleAnalyze}
-                      disabled={isAnalyzing}
-                    >
-                      {isAnalyzing ? (
-                        <>
-                          <Loader2 className="w-5 h-5 animate-spin" />
-                          Analyzing...
-                        </>
-                      ) : (
-                        <>
-                          <Sparkles className="w-5 h-5" />
-                          Analyze with AI
-                        </>
-                      )}
-                    </Button>
-                  </div>
+                  {/* Action Buttons - show different states */}
+                  {isAnalyzing ? (
+                    <div className="text-center">
+                      <div className="flex items-center justify-center gap-2 text-muted-foreground">
+                        <Loader2 className="w-5 h-5 animate-spin text-primary" />
+                        <span>This usually takes 5-10 seconds...</span>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex gap-3">
+                      <Button
+                        variant="secondary"
+                        onClick={() => fileInputRef.current?.click()}
+                        className="flex-1"
+                      >
+                        <Upload className="w-4 h-4" />
+                        Change Photo
+                      </Button>
+                      <Button
+                        variant="scan"
+                        size="lg"
+                        className="flex-[2]"
+                        onClick={handleAnalyze}
+                        disabled={isAnalyzing}
+                      >
+                        <Sparkles className="w-5 h-5" />
+                        Re-analyze
+                      </Button>
+                    </div>
+                  )}
 
                   {/* Save reminder for logged-in users */}
-                  {user && (
+                  {user && !isAnalyzing && (
                     <p className="text-sm text-muted-foreground text-center mt-4">
                       After analysis, you can save your diagnosis and treatment plan to <strong>My Saved Plans</strong>
                     </p>

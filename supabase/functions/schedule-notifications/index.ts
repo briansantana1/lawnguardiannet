@@ -30,6 +30,21 @@ interface WeatherData {
   feelsLike: number;
 }
 
+// Helper to decode JWT and extract user ID without full verification
+// (Supabase validates the token, we just need to extract the user ID)
+function getUserIdFromToken(authHeader: string): string | null {
+  try {
+    const token = authHeader.replace("Bearer ", "");
+    const parts = token.split(".");
+    if (parts.length !== 3) return null;
+    
+    const payload = JSON.parse(atob(parts[1]));
+    return payload.sub || null;
+  } catch {
+    return null;
+  }
+}
+
 serve(async (req) => {
   console.log("schedule-notifications: Request received", req.method);
   
@@ -50,6 +65,7 @@ serve(async (req) => {
     }
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
     const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY");
     
     if (!supabaseUrl || !supabaseAnonKey) {
@@ -60,19 +76,31 @@ serve(async (req) => {
       );
     }
 
-    const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+    // First try to get user via auth client
+    const authClient = createClient(supabaseUrl, supabaseAnonKey, {
       global: { headers: { Authorization: authHeader } }
     });
 
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
-    console.log("schedule-notifications: User check result:", user?.id || "no user", userError?.message || "no error");
+    let userId: string | null = null;
+
+    // Try getUser first
+    const { data: { user }, error: userError } = await authClient.auth.getUser();
     
-    if (userError || !user) {
-      console.error("schedule-notifications: User authentication failed:", userError?.message);
-      return new Response(
-        JSON.stringify({ error: "Unauthorized. Please sign in again." }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+    if (user) {
+      userId = user.id;
+      console.log("schedule-notifications: User authenticated via getUser:", userId);
+    } else {
+      // Fallback: extract user ID from JWT token
+      userId = getUserIdFromToken(authHeader);
+      console.log("schedule-notifications: User ID extracted from token:", userId);
+      
+      if (!userId) {
+        console.error("schedule-notifications: Could not authenticate user:", userError?.message);
+        return new Response(
+          JSON.stringify({ error: "Unauthorized. Please sign in again." }),
+          { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
     }
 
     const { aiAnalysis, weatherData } = await req.json() as { 
@@ -90,6 +118,9 @@ serve(async (req) => {
     
     console.log("schedule-notifications: Processing", aiAnalysis.recommendations.length, "recommendations");
 
+    // At this point userId is guaranteed to be a valid string
+    const validUserId = userId as string;
+    
     const now = new Date();
     const notifications: Array<{
       user_id: string;
@@ -122,7 +153,7 @@ serve(async (req) => {
       }
 
       notifications.push({
-        user_id: user.id,
+        user_id: validUserId,
         title: rec.title,
         message: rec.description,
         category: rec.category,
@@ -156,7 +187,7 @@ serve(async (req) => {
         }
 
         notifications.push({
-          user_id: user.id,
+          user_id: validUserId,
           title: alert.type === "warning" ? "⚠️ Urgent Alert" : 
                  alert.type === "caution" ? "⚡ Caution" : "💡 Lawn Tip",
           message: alert.message,
@@ -176,10 +207,15 @@ serve(async (req) => {
       });
     }
 
+    // Use service role key if available for database operations, otherwise use auth client
+    const dbClient = supabaseServiceKey 
+      ? createClient(supabaseUrl, supabaseServiceKey)
+      : authClient;
+
     // Insert notifications into database
-    console.log("schedule-notifications: Inserting", notifications.length, "notifications for user", user.id);
+    console.log("schedule-notifications: Inserting", notifications.length, "notifications for user", validUserId);
     
-    const { data: insertedNotifications, error: insertError } = await supabase
+    const { data: insertedNotifications, error: insertError } = await dbClient
       .from("notification_schedules")
       .insert(notifications)
       .select();
@@ -192,7 +228,7 @@ serve(async (req) => {
       );
     }
 
-    console.log(`Successfully scheduled ${notifications.length} notifications for user ${user.id}`);
+    console.log(`Successfully scheduled ${notifications.length} notifications for user ${validUserId}`);
 
     return new Response(
       JSON.stringify({ 

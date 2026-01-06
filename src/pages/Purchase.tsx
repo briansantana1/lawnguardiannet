@@ -1,29 +1,52 @@
 import { useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { ArrowLeft, CreditCard, Check, Loader2 } from "lucide-react";
+import { ArrowLeft, CreditCard, Check, Loader2, Shield, Lock, Leaf } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
 import { BottomNavigation } from "@/components/BottomNavigation";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 
-const planDetails: Record<string, { name: string; price: string; features: string[] }> = {
-  "one-time": {
-    name: "One-Time Option",
-    price: "$9.99",
-    features: ["1 photo scan", "1 diagnosis", "1 treatment plan with prevention tips"],
-  },
+const planDetails: Record<string, { name: string; price: string; priceValue: number; period: string; features: string[]; badge?: string }> = {
   monthly: {
-    name: "Monthly Plan",
-    price: "$4.99/month",
-    features: ["Unlimited photo scans", "Unlimited diagnoses", "Unlimited treatment plans", "Access to all features", "Cancel anytime"],
+    name: "Pro Monthly",
+    price: "$9.99",
+    priceValue: 9.99,
+    period: "/month",
+    features: [
+      "Unlimited photo scans",
+      "AI-powered Plant.id identification",
+      "Detailed diagnosis reports",
+      "Treatment recommendations",
+      "Organic & chemical options",
+      "Prevention strategies",
+      "Full history & tracking",
+      "Ad-free experience",
+      "Cancel anytime",
+    ],
+    badge: "MOST POPULAR",
   },
   annual: {
-    name: "Annual Plan",
-    price: "$39.99/year",
-    features: ["Unlimited photo scans", "Unlimited diagnoses", "Unlimited treatment plans", "Access to all features", "Best value - save 33%"],
+    name: "Pro Annual",
+    price: "$79.99",
+    priceValue: 79.99,
+    period: "/year",
+    features: [
+      "Everything in Pro Monthly",
+      "Unlimited photo scans",
+      "AI-powered Plant.id identification",
+      "Detailed diagnosis reports",
+      "Treatment recommendations",
+      "Organic & chemical options",
+      "Prevention strategies",
+      "Full history & tracking",
+      "Ad-free experience",
+      "Priority support",
+    ],
+    badge: "SAVE 33%",
   },
 };
 
@@ -80,7 +103,7 @@ export function Purchase() {
   }
 
   return (
-    <div className="min-h-screen bg-background pb-20">
+    <div className="min-h-screen bg-gradient-to-b from-background via-background to-lawn-50/30 dark:to-lawn-950/20 pb-24">
       <div className="container mx-auto px-4 py-8 max-w-lg">
         <button
           onClick={() => navigate(-1)}
@@ -90,21 +113,53 @@ export function Purchase() {
           Back
         </button>
 
-        <h1 className="font-heading text-2xl font-bold text-foreground mb-6">
-          Complete Purchase
+        <h1 className="font-heading text-2xl font-bold text-foreground mb-2">
+          Complete Your Purchase
         </h1>
+        <p className="text-muted-foreground mb-6">
+          Unlock unlimited AI-powered lawn diagnostics
+        </p>
 
         {/* Plan Summary */}
-        <Card variant="elevated" className="mb-6">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-lg">{plan.name}</CardTitle>
-            <p className="text-2xl font-bold text-primary">{plan.price}</p>
+        <Card variant="elevated" className={`mb-6 relative overflow-hidden ${
+          planId === 'monthly' 
+            ? 'ring-2 ring-lawn-500' 
+            : 'ring-2 ring-amber-400'
+        }`}>
+          {plan.badge && (
+            <div className={`absolute top-0 right-0 text-white text-xs font-bold px-4 py-1.5 rounded-bl-xl ${
+              planId === 'monthly' 
+                ? 'bg-gradient-to-r from-lawn-500 to-lawn-600' 
+                : 'bg-gradient-to-r from-amber-400 to-amber-500'
+            }`}>
+              {plan.badge}
+            </div>
+          )}
+          <CardHeader className="pb-3">
+            <div className="flex items-center gap-3">
+              <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
+                planId === 'monthly' 
+                  ? 'bg-gradient-to-br from-lawn-500 to-lawn-600' 
+                  : 'bg-gradient-to-br from-amber-400 to-amber-500'
+              }`}>
+                <Leaf className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <CardTitle className="text-xl font-bold">{plan.name}</CardTitle>
+                <div className="flex items-baseline gap-1 mt-1">
+                  <span className="text-3xl font-extrabold text-foreground">{plan.price}</span>
+                  <span className="text-sm text-muted-foreground font-medium">{plan.period}</span>
+                </div>
+              </div>
+            </div>
           </CardHeader>
           <CardContent>
-            <ul className="space-y-2">
-              {plan.features.map((feature) => (
-                <li key={feature} className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Check className="w-4 h-4 text-primary flex-shrink-0" />
+            <ul className="space-y-2.5">
+              {plan.features.slice(0, 5).map((feature) => (
+                <li key={feature} className="flex items-center gap-2.5 text-sm text-foreground">
+                  <div className="w-5 h-5 rounded-full bg-lawn-100 dark:bg-lawn-900 flex items-center justify-center flex-shrink-0">
+                    <Check className="w-3 h-3 text-lawn-600" />
+                  </div>
                   {feature}
                 </li>
               ))}
@@ -116,9 +171,13 @@ export function Purchase() {
         <Card variant="elevated">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-lg">
-              <CreditCard className="w-5 h-5" />
+              <CreditCard className="w-5 h-5 text-lawn-600" />
               Payment Details
             </CardTitle>
+            <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
+              <Lock className="w-3 h-3" />
+              Secured with 256-bit encryption
+            </p>
           </CardHeader>
           <CardContent>
             <form onSubmit={handlePurchase} className="space-y-4">
@@ -143,19 +202,46 @@ export function Purchase() {
                 </div>
               </div>
 
-              <Button type="submit" className="w-full" size="lg" disabled={isProcessing}>
+              <Button 
+                type="submit" 
+                size="lg" 
+                className={`w-full font-semibold ${
+                  planId === 'monthly'
+                    ? 'bg-gradient-to-r from-lawn-500 to-lawn-600 hover:from-lawn-600 hover:to-lawn-700 text-white shadow-md'
+                    : 'bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-white shadow-md'
+                }`}
+                disabled={isProcessing}
+              >
                 {isProcessing ? (
                   <>
                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                     Processing...
                   </>
                 ) : (
-                  `Pay ${plan.price}`
+                  `Subscribe for ${plan.price}${plan.period}`
                 )}
               </Button>
+
+              <p className="text-xs text-muted-foreground text-center">
+                Cancel anytime
+              </p>
             </form>
           </CardContent>
         </Card>
+
+        {/* Trust Badges */}
+        <div className="mt-6 text-center">
+          <div className="flex items-center justify-center gap-4 text-xs text-muted-foreground">
+            <div className="flex items-center gap-1">
+              <Shield className="w-4 h-4" />
+              <span>Secure Payment</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <Lock className="w-4 h-4" />
+              <span>Privacy Protected</span>
+            </div>
+          </div>
+        </div>
       </div>
       <BottomNavigation />
     </div>
