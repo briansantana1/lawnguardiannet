@@ -10,43 +10,33 @@ import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Leaf, Shield, Sparkles, Camera, Bell, Calendar, ArrowRight, CheckCircle2 } from "lucide-react";
 
-// Apple App Store badge SVG
+// Apple App Store badge - Official style
 const AppStoreBadge = () => (
-  <svg viewBox="0 0 120 40" className="h-10 w-auto">
-    <defs>
-      <linearGradient id="apple-gradient" x1="0%" y1="0%" x2="0%" y2="100%">
-        <stop offset="0%" stopColor="#1a1a1a" />
-        <stop offset="100%" stopColor="#000000" />
-      </linearGradient>
-    </defs>
-    <rect width="120" height="40" rx="6" fill="url(#apple-gradient)" />
-    <g fill="white">
-      <path d="M24.769 20.301c-.029-3.032 2.473-4.499 2.587-4.57-1.412-2.061-3.608-2.341-4.384-2.37-1.85-.19-3.637 1.1-4.577 1.1-.956 0-2.409-1.078-3.971-1.049-2.015.03-3.894 1.187-4.929 2.991-2.13 3.691-.543 9.115 1.5 12.096 1.022 1.455 2.22 3.081 3.792 3.022 1.532-.06 2.108-.976 3.956-.976 1.833 0 2.37.976 3.962.943 1.646-.03 2.686-1.46 3.677-2.927 1.177-1.666 1.651-3.303 1.68-3.387-.037-.014-3.222-1.235-3.253-4.873zM21.746 11.345c.82-1.016 1.384-2.404 1.228-3.812-1.188.053-2.673.814-3.531 1.798-.763.877-1.44 2.312-1.264 3.664 1.337.102 2.713-.665 3.527-1.65z" />
-    </g>
-    <text x="42" y="14" fill="white" fontSize="7" fontFamily="system-ui">Download on the</text>
-    <text x="42" y="27" fill="white" fontSize="13" fontWeight="600" fontFamily="system-ui">App Store</text>
-  </svg>
+  <div className="inline-flex items-center gap-2.5 bg-black text-white px-4 py-2.5 rounded-lg min-w-[140px] hover:bg-gray-900 transition-colors">
+    <svg className="w-7 h-7" viewBox="0 0 24 24" fill="currentColor">
+      <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/>
+    </svg>
+    <div className="text-left">
+      <div className="text-[10px] leading-tight opacity-80">Download on the</div>
+      <div className="text-base font-semibold leading-tight">App Store</div>
+    </div>
+  </div>
 );
 
-// Google Play badge SVG
+// Google Play badge - Official style
 const GooglePlayBadge = () => (
-  <svg viewBox="0 0 135 40" className="h-10 w-auto">
-    <defs>
-      <linearGradient id="play-gradient" x1="0%" y1="0%" x2="0%" y2="100%">
-        <stop offset="0%" stopColor="#1a1a1a" />
-        <stop offset="100%" stopColor="#000000" />
-      </linearGradient>
-    </defs>
-    <rect width="135" height="40" rx="6" fill="url(#play-gradient)" />
-    <g transform="translate(10, 8)">
-      <path fill="#00D4FF" d="M0 18.5V5.5c0-.5.3-.9.7-1.1l10.4 7.1L.7 18.6c-.4-.2-.7-.6-.7-1.1z"/>
-      <path fill="#00F076" d="M.7 4.4c.4-.2.9-.2 1.3 0l12.3 7.1L.7 18.6c-.4.2-.9.2-1.3 0L.7 4.4z"/>
-      <path fill="#FFCE00" d="M14.3 11.5l-3.2-1.9L.7 18.6c.4.2.9.2 1.3 0l12.3-7.1z"/>
-      <path fill="#FF3A44" d="M14.3 11.5L2 4.4c-.4-.2-.9-.2-1.3 0l10.4 7.1 3.2-1.9z"/>
-    </g>
-    <text x="35" y="14" fill="white" fontSize="6" fontFamily="system-ui">GET IT ON</text>
-    <text x="35" y="27" fill="white" fontSize="11" fontWeight="500" fontFamily="system-ui">Google Play</text>
-  </svg>
+  <div className="inline-flex items-center gap-2.5 bg-black text-white px-4 py-2.5 rounded-lg min-w-[140px] hover:bg-gray-900 transition-colors">
+    <svg className="w-6 h-6" viewBox="0 0 24 24">
+      <path fill="#EA4335" d="M3.609 1.814L13.792 12 3.61 22.186a.996.996 0 0 1-.61-.92V2.734a1 1 0 0 1 .609-.92z"/>
+      <path fill="#FBBC05" d="M16.296 15.193L3.61 22.186c.29.18.65.18.94 0l14.15-8.19-2.404-2.803z"/>
+      <path fill="#4285F4" d="M21.6 11.5c0-.56-.29-1.08-.76-1.37l-2.14-1.24-2.9 3.11 2.9 3.11 2.14-1.24c.47-.29.76-.81.76-1.37z"/>
+      <path fill="#34A853" d="M3.609 1.814c-.29-.18-.65-.18-.94 0l14.15 8.186 2.404-2.803L4.549 1.814z"/>
+    </svg>
+    <div className="text-left">
+      <div className="text-[10px] leading-tight opacity-80">GET IT ON</div>
+      <div className="text-base font-semibold leading-tight">Google Play</div>
+    </div>
+  </div>
 );
 
 const Landing = () => {

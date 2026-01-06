@@ -19,6 +19,7 @@ import { Purchase } from "./pages/Purchase";
 import { DeleteAccount } from "./pages/DeleteAccount";
 import Landing from "./pages/Landing";
 import Admin from "./pages/Admin";
+import AdminDashboard from "./pages/AdminDashboard";
 
 const queryClient = new QueryClient();
 
@@ -33,6 +34,7 @@ const App = () => (
           <Route path="/app" element={<Index />} />
           <Route path="/auth" element={<Auth />} />
           <Route path="/admin" element={<Admin />} />
+          <Route path="/admin/dashboard" element={<AdminDashboard />} />
           <Route path="/privacy" element={<PrivacyPolicy />} />
           <Route path="/terms" element={<TermsOfUse />} />
           <Route path="/contact" element={<Contact />} />

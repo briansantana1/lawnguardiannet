@@ -1,7 +1,7 @@
 /**
  * Admin Login Page
  * 
- * Provides admin authentication that redirects to the main dashboard.
+ * Provides admin authentication that redirects to the admin dashboard.
  */
 
 import { useState, useEffect } from "react";
@@ -18,17 +18,34 @@ const Admin = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [checkingSession, setCheckingSession] = useState(true);
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Check if already logged in
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    checkExistingSession();
+  }, []);
+
+  const checkExistingSession = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      
       if (session?.user) {
-        // Already logged in, redirect to dashboard
-        navigate("/");
+        // Check if already admin
+        const { data: isAdmin } = await supabase.rpc('is_admin', { 
+          _user_id: session.user.id 
+        });
+        
+        if (isAdmin) {
+          navigate("/admin/dashboard");
+          return;
+        }
       }
-    });
-  }, [navigate]);
+    } catch (error) {
+      console.error("Session check error:", error);
+    } finally {
+      setCheckingSession(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -43,8 +60,23 @@ const Admin = () => {
       if (error) throw error;
 
       if (data.user) {
+        // Verify admin status
+        const { data: isAdmin, error: adminError } = await supabase.rpc('is_admin', { 
+          _user_id: data.user.id 
+        });
+
+        if (adminError) {
+          throw new Error("Failed to verify admin status");
+        }
+
+        if (!isAdmin) {
+          await supabase.auth.signOut();
+          toast.error("Access denied. This account does not have admin privileges.");
+          return;
+        }
+
         toast.success("Welcome back, Admin!");
-        navigate("/");
+        navigate("/admin/dashboard");
       }
     } catch (error: any) {
       console.error("Admin login error:", error);
@@ -57,6 +89,14 @@ const Admin = () => {
       setLoading(false);
     }
   };
+
+  if (checkingSession) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-lawn-950 to-background flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-lawn-500" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-lawn-950 to-background flex items-center justify-center p-4">
