@@ -551,7 +551,7 @@ export function WeatherAlerts() {
         });
         
         // Show a test notification
-        new Notification("Lawn Guardian", {
+        new Notification("Lawn Guardian™", {
           body: "Smart notifications are now enabled! You'll receive alerts about lawn conditions.",
           icon: "/favicon.ico",
         });

@@ -37,7 +37,7 @@ export function TermsOfUse() {
           <section>
             <h2 className="text-xl font-semibold mb-3">1. Acceptance of Terms</h2>
             <p className="text-muted-foreground leading-relaxed">
-              Welcome to Lawn Guardian. These Terms of Use ("Terms," "Agreement") constitute a legally binding agreement between you ("User," "you," "your") and Lawn Guardian ("Company," "we," "us," "our") governing your access to and use of the Lawn Guardian mobile application (the "App") and related services (collectively, the "Service").
+              Welcome to Lawn Guardian™. These Terms of Use ("Terms," "Agreement") constitute a legally binding agreement between you ("User," "you," "your") and Lawn Guardian™ ("Company," "we," "us," "our") governing your access to and use of the Lawn Guardian™ mobile application (the "App") and related services (collectively, the "Service").
             </p>
             <p className="text-muted-foreground leading-relaxed mt-3">
               By creating an account, downloading, installing, accessing, or using the Service, you acknowledge that you have read, understood, and agree to be bound by these Terms and our Privacy Policy. If you do not agree to these Terms, you must immediately stop using the Service and uninstall the App.
@@ -219,7 +219,7 @@ export function TermsOfUse() {
           <section>
             <h2 className="text-xl font-semibold mb-3">10. Intellectual Property</h2>
             <p className="text-muted-foreground leading-relaxed">
-              The Service and its original content (excluding User Content), features, functionality, design, graphics, and trademarks are and will remain the exclusive property of Lawn Guardian and its licensors. The Service is protected by copyright, trademark, and other intellectual property laws of the United States and foreign countries.
+              The Service and its original content (excluding User Content), features, functionality, design, graphics, and trademarks are and will remain the exclusive property of Lawn Guardian™ and its licensors. The Service is protected by copyright, trademark, and other intellectual property laws of the United States and foreign countries.
             </p>
             <p className="text-muted-foreground leading-relaxed mt-3">
               You may not use our trademarks, logos, or brand elements without our prior written consent.
@@ -345,7 +345,7 @@ export function TermsOfUse() {
             
             <h3 className="text-lg font-medium mt-4 mb-2">18.1 Entire Agreement</h3>
             <p className="text-muted-foreground leading-relaxed">
-              These Terms, together with our Privacy Policy, constitute the entire agreement between you and Lawn Guardian regarding the Service and supersede all prior agreements.
+              These Terms, together with our Privacy Policy, constitute the entire agreement between you and Lawn Guardian™ regarding the Service and supersede all prior agreements.
             </p>
 
             <h3 className="text-lg font-medium mt-4 mb-2">18.2 Severability</h3>
@@ -417,7 +417,7 @@ export function TermsOfUse() {
           {/* Acceptance Footer */}
           <div className="bg-primary/5 border border-primary/20 rounded-xl p-6 mt-8">
             <p className="text-foreground font-medium text-center">
-              By using Lawn Guardian, you acknowledge that you have read, understood, and agree to be bound by these Terms of Use and our Privacy Policy.
+              By using Lawn Guardian™, you acknowledge that you have read, understood, and agree to be bound by these Terms of Use and our Privacy Policy.
             </p>
           </div>
         </div>

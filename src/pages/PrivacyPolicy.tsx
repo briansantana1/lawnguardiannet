@@ -64,7 +64,7 @@ export function PrivacyPolicy() {
           <section>
             <h2 className="text-xl font-semibold mb-3">1. Introduction</h2>
             <p className="text-muted-foreground leading-relaxed">
-              Lawn Guardian ("we," "our," "us," or the "Company") operates the Lawn Guardian mobile application (the "App") available on Apple App Store and Google Play Store. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our App and related services (collectively, the "Service").
+              Lawn Guardian™ ("we," "our," "us," or the "Company") operates the Lawn Guardian™ mobile application (the "App") available on Apple App Store and Google Play Store. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our App and related services (collectively, the "Service").
             </p>
             <p className="text-muted-foreground leading-relaxed mt-3">
               By downloading, installing, or using the App, you agree to the collection and use of information in accordance with this Privacy Policy. If you do not agree with this Privacy Policy, please do not use the App.
@@ -308,7 +308,7 @@ export function PrivacyPolicy() {
               If you have any questions, concerns, or requests regarding this Privacy Policy or our data practices, please contact us:
             </p>
             <div className="mt-4 p-4 bg-lawn-50 dark:bg-lawn-950/50 rounded-xl">
-              <p className="font-medium text-foreground">Lawn Guardian</p>
+              <p className="font-medium text-foreground">Lawn Guardian™</p>
               <p className="text-muted-foreground mt-2">
                 <strong>Email:</strong>{" "}
                 <a href="mailto:info.lawnguardian@yahoo.com" className="text-primary hover:underline">

@@ -380,7 +380,7 @@ const Landing = () => {
               <div className="w-10 h-10 bg-gradient-to-br from-lawn-400 to-lawn-600 rounded-xl flex items-center justify-center">
                 <Leaf className="w-5 h-5 text-white" />
               </div>
-              <span className="text-lg font-bold text-foreground">Lawn Guardian</span>
+              <span className="text-lg font-bold text-foreground">Lawn Guardian™</span>
             </div>
 
             {/* Links */}

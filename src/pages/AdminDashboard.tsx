@@ -148,7 +148,7 @@ const AdminDashboard = () => {
         {/* Welcome */}
         <div className="mb-8">
           <h2 className="text-2xl font-bold text-foreground mb-2">Welcome back, Admin</h2>
-          <p className="text-muted-foreground">Here's an overview of your Lawn Guardian app.</p>
+          <p className="text-muted-foreground">Here's an overview of your Lawn Guardian™ app.</p>
         </div>
 
         {/* Stats Grid */}

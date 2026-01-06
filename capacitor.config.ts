@@ -16,7 +16,7 @@ const config: CapacitorConfig = {
   appId: 'com.lawnguardian.app',
   
   // Display name shown on device
-  appName: 'Lawn Guardian',
+  appName: 'Lawn Guardian™',
   
   // Build output directory
   webDir: 'dist',
