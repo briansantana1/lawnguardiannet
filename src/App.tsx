@@ -16,6 +16,7 @@ import { SavedPlans } from "./pages/SavedPlans";
 import { CancelMembership } from "./pages/CancelMembership";
 import { RestoreMembership } from "./pages/RestoreMembership";
 import { Purchase } from "./pages/Purchase";
+import { DeleteAccount } from "./pages/DeleteAccount";
 
 const queryClient = new QueryClient();
 
@@ -38,6 +39,7 @@ const App = () => (
           <Route path="/cancel-membership" element={<CancelMembership />} />
           <Route path="/restore-membership" element={<RestoreMembership />} />
           <Route path="/purchase" element={<Purchase />} />
+          <Route path="/delete-account" element={<DeleteAccount />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>

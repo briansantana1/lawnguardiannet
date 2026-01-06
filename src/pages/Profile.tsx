@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { CreditCard, XCircle, RefreshCw, Mail, ChevronRight, LogOut, User, Save, ArrowLeft, Loader2, MapPin, Leaf } from "lucide-react";
+import { CreditCard, XCircle, RefreshCw, Mail, ChevronRight, LogOut, User, Save, ArrowLeft, Loader2, MapPin, Leaf, Trash2 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -337,18 +337,30 @@ export function Profile() {
           </>
         )}
 
-        {/* Sign Out */}
+        {/* Sign Out & Delete Account */}
         {user && (
           <>
             <Separator className="my-6" />
-            <Button 
-              variant="outline" 
-              className="w-full text-destructive hover:text-destructive"
-              onClick={signOut}
-            >
-              <LogOut className="w-4 h-4 mr-2" />
-              Sign Out
-            </Button>
+            <div className="space-y-3">
+              <Button 
+                variant="outline" 
+                className="w-full"
+                onClick={signOut}
+              >
+                <LogOut className="w-4 h-4 mr-2" />
+                Sign Out
+              </Button>
+              
+              <Link to="/delete-account" className="block">
+                <Button 
+                  variant="ghost" 
+                  className="w-full text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                >
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  Delete Account
+                </Button>
+              </Link>
+            </div>
           </>
         )}
       </div>
