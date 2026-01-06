@@ -125,6 +125,39 @@ export type Database = {
         }
         Relationships: []
       }
+      site_settings: {
+        Row: {
+          category: string
+          created_at: string | null
+          description: string | null
+          id: string
+          key: string
+          label: string
+          updated_at: string | null
+          value: string | null
+        }
+        Insert: {
+          category?: string
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          key: string
+          label: string
+          updated_at?: string | null
+          value?: string | null
+        }
+        Update: {
+          category?: string
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          key?: string
+          label?: string
+          updated_at?: string | null
+          value?: string | null
+        }
+        Relationships: []
+      }
       treatment_calendar_entries: {
         Row: {
           created_at: string

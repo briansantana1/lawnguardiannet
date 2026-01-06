@@ -234,17 +234,17 @@ const AdminDashboard = () => {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="border-lawn-200 dark:border-lawn-800">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Settings className="w-5 h-5 text-amber-500" />
-                App Settings
+                <Settings className="w-5 h-5 text-lawn-500" />
+                Site Settings
               </CardTitle>
-              <CardDescription>Configure app behavior</CardDescription>
+              <CardDescription>Edit URLs, text, and site content</CardDescription>
             </CardHeader>
             <CardContent>
-              <Button variant="outline" className="w-full" disabled>
-                Coming Soon
+              <Button variant="default" className="w-full" onClick={() => navigate("/admin/settings")}>
+                Manage Settings
               </Button>
             </CardContent>
           </Card>
