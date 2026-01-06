@@ -43,6 +43,7 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { Json } from "@/integrations/supabase/types";
 import { useAuth } from "@/hooks/useAuth";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -185,53 +186,46 @@ export function WeatherAlerts() {
     }
   };
 
-  // Fetch notification preferences
+  // Fetch notification preferences from localStorage
   const fetchNotificationPreferences = async () => {
     if (!user) return;
     
-    const { data, error } = await supabase
-      .from("notification_preferences")
-      .select("*")
-      .eq("user_id", user.id)
-      .single();
-
-    if (!error && data) {
-      setNotificationSettings({
-        diseaseAlerts: data.disease_alerts,
-        insectAlerts: data.insect_alerts,
-        weatherAlerts: data.weather_alerts,
-        treatmentReminders: data.treatment_reminders,
-        dailyDigest: data.daily_digest,
-        weeklyReport: data.weekly_report,
-        preferredTime: data.preferred_time?.slice(0, 5) || "08:00",
-        timezone: data.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
-      });
-      setNotificationsEnabled(data.browser_notifications_enabled);
+    try {
+      const stored = localStorage.getItem(`notification_prefs_${user.id}`);
+      if (stored) {
+        const data = JSON.parse(stored);
+        setNotificationSettings({
+          diseaseAlerts: data.diseaseAlerts ?? true,
+          insectAlerts: data.insectAlerts ?? true,
+          weatherAlerts: data.weatherAlerts ?? true,
+          treatmentReminders: data.treatmentReminders ?? true,
+          dailyDigest: data.dailyDigest ?? false,
+          weeklyReport: data.weeklyReport ?? true,
+          preferredTime: data.preferredTime || "08:00",
+          timezone: data.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
+        });
+        setNotificationsEnabled(data.browserNotificationsEnabled ?? false);
+      }
+    } catch (error) {
+      console.error("Error loading notification preferences:", error);
     }
   };
 
-  // Save notification preferences
+  // Save notification preferences to localStorage
   const saveNotificationPreferences = async () => {
     if (!user) return false;
 
-    const { error } = await supabase
-      .from("notification_preferences")
-      .upsert({
-        user_id: user.id,
-        disease_alerts: notificationSettings.diseaseAlerts,
-        insect_alerts: notificationSettings.insectAlerts,
-        weather_alerts: notificationSettings.weatherAlerts,
-        treatment_reminders: notificationSettings.treatmentReminders,
-        daily_digest: notificationSettings.dailyDigest,
-        weekly_report: notificationSettings.weeklyReport,
-        preferred_time: notificationSettings.preferredTime + ":00",
-        timezone: notificationSettings.timezone,
-        browser_notifications_enabled: notificationsEnabled,
-      }, {
-        onConflict: 'user_id'
-      });
-
-    return !error;
+    try {
+      const prefs = {
+        ...notificationSettings,
+        browserNotificationsEnabled: notificationsEnabled,
+      };
+      localStorage.setItem(`notification_prefs_${user.id}`, JSON.stringify(prefs));
+      return true;
+    } catch (error) {
+      console.error("Error saving notification preferences:", error);
+      return false;
+    }
   };
 
   useEffect(() => {
@@ -301,7 +295,7 @@ export function WeatherAlerts() {
         category: string;
         priority: string;
         scheduled_for: string;
-        weather_context: object;
+        weather_context: Json;
       }> = [];
 
       // Schedule notifications based on recommendations
@@ -332,7 +326,7 @@ export function WeatherAlerts() {
             conditions: weatherData.conditions,
             location: weatherData.location,
             analyzedAt: now.toISOString(),
-          },
+          } as Json,
         });
       });
 
@@ -365,7 +359,7 @@ export function WeatherAlerts() {
               conditions: weatherData.conditions,
               location: weatherData.location,
               analyzedAt: now.toISOString(),
-            },
+            } as Json,
           });
         });
       }
@@ -542,24 +536,13 @@ export function WeatherAlerts() {
       if (permission === "granted") {
         setNotificationsEnabled(true);
         
-        // Save the preference if user is logged in
+        // Save the preference to localStorage if user is logged in
         if (user) {
-          await supabase
-            .from("notification_preferences")
-            .upsert({
-              user_id: user.id,
-              browser_notifications_enabled: true,
-              disease_alerts: notificationSettings.diseaseAlerts,
-              insect_alerts: notificationSettings.insectAlerts,
-              weather_alerts: notificationSettings.weatherAlerts,
-              treatment_reminders: notificationSettings.treatmentReminders,
-              daily_digest: notificationSettings.dailyDigest,
-              weekly_report: notificationSettings.weeklyReport,
-              preferred_time: notificationSettings.preferredTime + ":00",
-              timezone: notificationSettings.timezone,
-            }, {
-              onConflict: 'user_id'
-            });
+          const prefs = {
+            ...notificationSettings,
+            browserNotificationsEnabled: true,
+          };
+          localStorage.setItem(`notification_prefs_${user.id}`, JSON.stringify(prefs));
         }
         
         toast({
