@@ -2,12 +2,15 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-    <key>CAPACITOR_DEBUG</key>
+	<!-- Capacitor Debug Mode -->
+	<key>CAPACITOR_DEBUG</key>
 	<string>$(CAPACITOR_DEBUG)</string>
+	
+	<!-- Bundle Configuration -->
 	<key>CFBundleDevelopmentRegion</key>
 	<string>en</string>
 	<key>CFBundleDisplayName</key>
-        <string>lawnguardiannet</string>
+	<string>Lawn Guardian</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -24,14 +27,20 @@
 	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	
+	<!-- App Launch Configuration -->
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
 	<key>UIMainStoryboardFile</key>
 	<string>Main</string>
+	
+	<!-- Required Device Capabilities -->
 	<key>UIRequiredDeviceCapabilities</key>
 	<array>
 		<string>armv7</string>
 	</array>
+	
+	<!-- Supported Interface Orientations -->
 	<key>UISupportedInterfaceOrientations</key>
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>
@@ -47,5 +56,126 @@
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>
+	
+	<!-- ============================================ -->
+	<!-- PRIVACY USAGE DESCRIPTIONS (Required by Apple) -->
+	<!-- ============================================ -->
+	
+	<!-- Camera Access - Required for lawn photo capture -->
+	<key>NSCameraUsageDescription</key>
+	<string>Lawn Guardian uses your camera to capture photos of your lawn for AI-powered disease, pest, and weed identification.</string>
+	
+	<!-- Photo Library Access - Required for selecting lawn photos -->
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Lawn Guardian needs access to your photo library so you can select lawn photos for analysis and save diagnosis results.</string>
+	
+	<!-- Photo Library Add Usage - Required for saving photos -->
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>Lawn Guardian saves analyzed lawn photos to your library for future reference.</string>
+	
+	<!-- Location When In Use - Required for weather features -->
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Lawn Guardian uses your location to provide accurate local weather forecasts, soil temperature data, and region-specific lawn care recommendations.</string>
+	
+	<!-- Location Always (optional, for background notifications) -->
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>Lawn Guardian uses your location in the background to send timely weather alerts and lawn care reminders based on local conditions.</string>
+	
+	<!-- User Notifications - Required for push notifications -->
+	<key>NSUserNotificationUsageDescription</key>
+	<string>Lawn Guardian sends notifications about weather alerts, treatment reminders, and optimal lawn care timing.</string>
+	
+	<!-- Face ID (if used for app lock feature in future) -->
+	<key>NSFaceIDUsageDescription</key>
+	<string>Lawn Guardian uses Face ID to securely access your account and protect your lawn care data.</string>
+	
+	<!-- ============================================ -->
+	<!-- APP TRANSPORT SECURITY SETTINGS -->
+	<!-- ============================================ -->
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<!-- Allow HTTPS connections (default secure behavior) -->
+		<key>NSAllowsArbitraryLoads</key>
+		<false/>
+		
+		<!-- Exception domains for specific services if needed -->
+		<key>NSExceptionDomains</key>
+		<dict>
+			<!-- Supabase API (already HTTPS, but ensure compatibility) -->
+			<key>supabase.co</key>
+			<dict>
+				<key>NSIncludesSubdomains</key>
+				<true/>
+				<key>NSExceptionAllowsInsecureHTTPLoads</key>
+				<false/>
+				<key>NSExceptionRequiresForwardSecrecy</key>
+				<true/>
+				<key>NSExceptionMinimumTLSVersion</key>
+				<string>TLSv1.2</string>
+			</dict>
+		</dict>
+	</dict>
+	
+	<!-- ============================================ -->
+	<!-- IN-APP PURCHASE CONFIGURATION -->
+	<!-- ============================================ -->
+	
+	<!-- StoreKit Configuration -->
+	<key>SKAdNetworkItems</key>
+	<array/>
+	
+	<!-- ============================================ -->
+	<!-- BACKGROUND MODES -->
+	<!-- ============================================ -->
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>fetch</string>
+		<string>remote-notification</string>
+	</array>
+	
+	<!-- ============================================ -->
+	<!-- ASSOCIATED DOMAINS (for Universal Links) -->
+	<!-- ============================================ -->
+	
+	<!-- URL Schemes -->
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>com.lawnguardian.app</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>lawnguardian</string>
+			</array>
+		</dict>
+	</array>
+	
+	<!-- ============================================ -->
+	<!-- APP APPEARANCE -->
+	<!-- ============================================ -->
+	
+	<!-- Support Dark Mode -->
+	<key>UIUserInterfaceStyle</key>
+	<string>Automatic</string>
+	
+	<!-- Status Bar Style -->
+	<key>UIStatusBarStyle</key>
+	<string>UIStatusBarStyleDefault</string>
+	
+	<!-- ============================================ -->
+	<!-- CAPABILITIES FLAGS -->
+	<!-- ============================================ -->
+	
+	<!-- iTunes File Sharing (disabled) -->
+	<key>UIFileSharingEnabled</key>
+	<false/>
+	
+	<!-- Supports Document Browser (disabled) -->
+	<key>UISupportsDocumentBrowser</key>
+	<false/>
+	
+	<!-- Requires Full Screen -->
+	<key>UIRequiresFullScreen</key>
+	<false/>
 </dict>
 </plist>
