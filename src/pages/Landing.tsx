@@ -9,6 +9,7 @@ import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Leaf, Shield, Sparkles, Camera, Bell, Calendar, ArrowRight, CheckCircle2 } from "lucide-react";
+import { useSiteSettings } from "@/hooks/useSiteSettings";
 
 // Apple App Store badge - Official style
 const AppStoreBadge = () => (
@@ -43,6 +44,50 @@ const Landing = () => {
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
   const [isHovering, setIsHovering] = useState(false);
   const [rotation, setRotation] = useState({ x: 0, y: 0 });
+  const { getSetting, loading: settingsLoading } = useSiteSettings();
+
+  // Get settings with fallbacks
+  const appStoreUrl = getSetting("app_store_url", "https://apps.apple.com/app/lawn-guardian");
+  const googlePlayUrl = getSetting("google_play_url", "https://play.google.com/store/apps/details?id=app.lovable.lawnguardian");
+  const brandName = getSetting("brand_name", "Lawn Guardian");
+  const heroHeadline = getSetting("hero_headline", "Your Lawn's AI-Powered Personal Expert");
+  const heroSubheadline = getSetting("hero_subheadline", "Snap a photo. Get instant diagnosis. Receive personalized treatment plans. Transform your lawn with AI-powered care.");
+  const ctaHeadline = getSetting("cta_headline", "Ready for a Healthier Lawn?");
+  const ctaSubheadline = getSetting("cta_subheadline", "Join thousands of homeowners who trust Lawn Guardian for expert lawn care advice.");
+  
+  // Features
+  const features = [
+    {
+      icon: Camera,
+      title: getSetting("feature_1_title", "AI Photo Diagnosis"),
+      description: getSetting("feature_1_description", "Take a photo of any lawn problem and get instant identification of diseases, weeds, and pests.")
+    },
+    {
+      icon: Sparkles,
+      title: getSetting("feature_2_title", "Smart Treatment Plans"),
+      description: getSetting("feature_2_description", "Receive personalized treatment recommendations based on your specific grass type and climate.")
+    },
+    {
+      icon: Bell,
+      title: getSetting("feature_3_title", "Weather-Based Alerts"),
+      description: getSetting("feature_3_description", "Get proactive notifications when weather conditions put your lawn at risk.")
+    },
+    {
+      icon: Calendar,
+      title: getSetting("feature_4_title", "Treatment Calendar"),
+      description: getSetting("feature_4_description", "Track applications and never miss a treatment with smart scheduling reminders.")
+    },
+    {
+      icon: Shield,
+      title: getSetting("feature_5_title", "Disease Prevention"),
+      description: getSetting("feature_5_description", "Stay ahead of problems with predictive alerts based on local conditions.")
+    },
+    {
+      icon: CheckCircle2,
+      title: getSetting("feature_6_title", "Progress Tracking"),
+      description: getSetting("feature_6_description", "Monitor your lawn's health over time and see your improvements.")
+    }
+  ];
 
   // Continuous 3D floating animation
   useEffect(() => {
@@ -94,20 +139,23 @@ const Landing = () => {
                   <Leaf className="w-6 h-6 text-white" />
                 </div>
                 <span className="text-xl font-bold font-display text-lawn-800 dark:text-lawn-200">
-                  Lawn Guardian
+                  {brandName}
                 </span>
               </div>
 
               {/* Hero Headline */}
               <div className="space-y-3">
                 <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold font-display leading-tight text-foreground">
-                  Your Lawn's 
-                  <span className="text-lawn-600 dark:text-lawn-400"> AI-Powered </span>
-                  Personal Expert
+                  {heroHeadline.includes("AI-Powered") ? (
+                    <>
+                      {heroHeadline.split("AI-Powered")[0]}
+                      <span className="text-lawn-600 dark:text-lawn-400">AI-Powered</span>
+                      {heroHeadline.split("AI-Powered")[1]}
+                    </>
+                  ) : heroHeadline}
                 </h1>
                 <p className="text-lg text-muted-foreground max-w-xl mx-auto lg:mx-0">
-                  Snap a photo. Get instant diagnosis. Receive personalized treatment plans. 
-                  Transform your lawn with AI-powered care.
+                  {heroSubheadline}
                 </p>
               </div>
 
@@ -137,7 +185,7 @@ const Landing = () => {
               {/* App Store Buttons - Apple Native Style */}
               <div className="flex flex-col sm:flex-row gap-3 justify-center lg:justify-start">
                 <a 
-                  href="https://apps.apple.com/app/lawn-guardian" 
+                  href={appStoreUrl} 
                   target="_blank" 
                   rel="noopener noreferrer"
                   className="inline-block transform transition-all duration-200 hover:scale-105 active:scale-95"
@@ -145,7 +193,7 @@ const Landing = () => {
                   <AppStoreBadge />
                 </a>
                 <a 
-                  href="https://play.google.com/store/apps/details?id=app.lovable.lawnguardian" 
+                  href={googlePlayUrl} 
                   target="_blank" 
                   rel="noopener noreferrer"
                   className="inline-block transform transition-all duration-200 hover:scale-105 active:scale-95"
@@ -268,38 +316,7 @@ const Landing = () => {
           </div>
 
           <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
-            {[
-              {
-                icon: Camera,
-                title: "AI Photo Diagnosis",
-                description: "Take a photo of any lawn problem and get instant identification of diseases, weeds, and pests."
-              },
-              {
-                icon: Sparkles,
-                title: "Smart Treatment Plans",
-                description: "Receive personalized treatment recommendations based on your specific grass type and climate."
-              },
-              {
-                icon: Bell,
-                title: "Weather-Based Alerts",
-                description: "Get proactive notifications when weather conditions put your lawn at risk."
-              },
-              {
-                icon: Calendar,
-                title: "Treatment Calendar",
-                description: "Track applications and never miss a treatment with smart scheduling reminders."
-              },
-              {
-                icon: Shield,
-                title: "Disease Prevention",
-                description: "Stay ahead of problems with predictive alerts based on local conditions."
-              },
-              {
-                icon: CheckCircle2,
-                title: "Progress Tracking",
-                description: "Monitor your lawn's health over time and see your improvements."
-              }
-            ].map((feature, index) => (
+            {features.map((feature, index) => (
               <div 
                 key={index}
                 className="bg-card rounded-2xl p-6 border border-border/50 shadow-sm hover:shadow-md transition-shadow"
@@ -325,15 +342,15 @@ const Landing = () => {
             
             <div className="relative z-10 space-y-6">
               <h2 className="text-3xl md:text-4xl font-bold font-display">
-                Ready for a Healthier Lawn?
+                {ctaHeadline}
               </h2>
               <p className="text-lg text-white/80 max-w-xl mx-auto">
-                Join thousands of homeowners who trust Lawn Guardian for expert lawn care advice.
+                {ctaSubheadline}
               </p>
               
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
                 <a 
-                  href="https://apps.apple.com/app/lawn-guardian" 
+                  href={appStoreUrl} 
                   target="_blank" 
                   rel="noopener noreferrer"
                   className="inline-block transform transition-all duration-200 hover:scale-105 active:scale-95"
@@ -341,7 +358,7 @@ const Landing = () => {
                   <AppStoreBadge />
                 </a>
                 <a 
-                  href="https://play.google.com/store/apps/details?id=app.lovable.lawnguardian" 
+                  href={googlePlayUrl} 
                   target="_blank" 
                   rel="noopener noreferrer"
                   className="inline-block transform transition-all duration-200 hover:scale-105 active:scale-95"
