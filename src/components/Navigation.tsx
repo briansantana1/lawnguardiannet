@@ -32,7 +32,7 @@ export function Navigation() {
               <Leaf className="w-5 h-5 text-primary-foreground" />
             </div>
             <span className="font-heading font-bold text-lg text-foreground">
-              Lawn Guardian
+              Lawn Guardian™
             </span>
           </Link>
 

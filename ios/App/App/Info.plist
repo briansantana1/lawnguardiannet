@@ -63,11 +63,11 @@
 	
 	<!-- Camera Access - Required for lawn photo capture -->
 	<key>NSCameraUsageDescription</key>
-	<string>Lawn Guardian uses your camera to capture photos of your lawn for AI-powered disease, pest, and weed identification.</string>
+	<string>Lawn Guardian™ uses your camera to capture photos of your lawn for AI-powered disease, pest, and weed identification.</string>
 	
 	<!-- Photo Library Access - Required for selecting lawn photos -->
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>Lawn Guardian needs access to your photo library so you can select lawn photos for analysis and save diagnosis results.</string>
+	<string>Lawn Guardian™ needs access to your photo library so you can select lawn photos for analysis and save diagnosis results.</string>
 	
 	<!-- Photo Library Add Usage - Required for saving photos -->
 	<key>NSPhotoLibraryAddUsageDescription</key>

@@ -184,7 +184,7 @@ const Auth = () => {
           <CardDescription>
             {isLogin 
               ? 'Sign in to access your lawn care dashboard' 
-              : 'Join Lawn Guardian to start caring for your lawn'
+              : 'Join Lawn Guardian™ to start caring for your lawn'
             }
           </CardDescription>
         </CardHeader>

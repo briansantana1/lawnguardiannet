@@ -114,7 +114,7 @@ const Admin = () => {
             Admin Access
           </CardTitle>
           <CardDescription>
-            Sign in to access the Lawn Guardian admin dashboard
+            Sign in to access the Lawn Guardian™ admin dashboard
           </CardDescription>
         </CardHeader>
         <CardContent>

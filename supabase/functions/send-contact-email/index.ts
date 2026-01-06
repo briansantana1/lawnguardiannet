@@ -82,9 +82,9 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log(`Sending contact email from ${sanitizedName} (${sanitizedEmail})`);
 
-    // Send notification email to Lawn Guardian
+    // Send notification email to Lawn Guardian™
     const notificationResponse = await sendEmail({
-      from: "Lawn Guardian <onboarding@resend.dev>",
+      from: "Lawn Guardian™ <onboarding@resend.dev>",
       to: ["info.lawnguardian@yahoo.com"],
       replyTo: sanitizedEmail,
       subject: `[Contact Form] ${sanitizedSubject}`,
@@ -170,7 +170,7 @@ const handler = async (req: Request): Promise<Response> => {
               </div>
               <p>In the meantime, feel free to explore our AI-powered lawn care features to get personalized recommendations for your lawn!</p>
               <div class="footer">
-                <p>Best regards,<br><strong>The Lawn Guardian Team</strong></p>
+                <p>Best regards,<br><strong>The Lawn Guardian™ Team</strong></p>
                 <p style="font-size: 12px; color: #9ca3af;">
                   This is an automated response. Please do not reply directly to this email.<br>
                   For additional inquiries, contact us at info.lawnguardian@yahoo.com
