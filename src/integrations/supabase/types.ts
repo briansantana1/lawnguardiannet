@@ -14,57 +14,6 @@ export type Database = {
   }
   public: {
     Tables: {
-      notification_preferences: {
-        Row: {
-          id: string
-          user_id: string
-          disease_alerts: boolean
-          insect_alerts: boolean
-          weather_alerts: boolean
-          treatment_reminders: boolean
-          daily_digest: boolean
-          weekly_report: boolean
-          preferred_time: string
-          timezone: string
-          browser_notifications_enabled: boolean
-          email_notifications_enabled: boolean
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          id?: string
-          user_id: string
-          disease_alerts?: boolean
-          insect_alerts?: boolean
-          weather_alerts?: boolean
-          treatment_reminders?: boolean
-          daily_digest?: boolean
-          weekly_report?: boolean
-          preferred_time?: string
-          timezone?: string
-          browser_notifications_enabled?: boolean
-          email_notifications_enabled?: boolean
-          created_at?: string
-          updated_at?: string
-        }
-        Update: {
-          id?: string
-          user_id?: string
-          disease_alerts?: boolean
-          insect_alerts?: boolean
-          weather_alerts?: boolean
-          treatment_reminders?: boolean
-          daily_digest?: boolean
-          weekly_report?: boolean
-          preferred_time?: string
-          timezone?: string
-          browser_notifications_enabled?: boolean
-          email_notifications_enabled?: boolean
-          created_at?: string
-          updated_at?: string
-        }
-        Relationships: []
-      }
       notification_schedules: {
         Row: {
           category: string

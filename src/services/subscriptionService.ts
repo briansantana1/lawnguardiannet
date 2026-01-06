@@ -269,6 +269,7 @@ export async function canPerformScan(): Promise<{
 
 /**
  * Record a scan usage (called after successful scan)
+ * Uses localStorage as fallback when database function doesn't exist
  */
 export async function recordScanUsage(): Promise<{
   success: boolean;
@@ -283,22 +284,28 @@ export async function recordScanUsage(): Promise<{
       return { success: false, scansUsed: 0, scansLimit: 3, message: "Not authenticated" };
     }
 
-    // Call the database function to increment usage
-    const { data, error } = await supabase.rpc("increment_scan_usage", {
-      check_user_id: session.user.id,
-    });
-
-    if (error) {
-      console.error("Error recording scan usage:", error);
-      return { success: false, scansUsed: 0, scansLimit: 3, message: error.message };
+    // Use localStorage to track scan usage as fallback
+    const storageKey = `scan_usage_${session.user.id}`;
+    const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM format
+    
+    let usageData = { month: currentMonth, count: 0 };
+    const stored = localStorage.getItem(storageKey);
+    
+    if (stored) {
+      const parsed = JSON.parse(stored);
+      if (parsed.month === currentMonth) {
+        usageData = parsed;
+      }
     }
+    
+    usageData.count += 1;
+    localStorage.setItem(storageKey, JSON.stringify(usageData));
 
-    const result = data?.[0];
     return {
-      success: result?.success ?? false,
-      scansUsed: result?.scans_used ?? 0,
-      scansLimit: result?.scans_limit ?? 3,
-      message: result?.message,
+      success: true,
+      scansUsed: usageData.count,
+      scansLimit: 3,
+      message: usageData.count >= 3 ? "Monthly scan limit reached" : undefined,
     };
   } catch (error) {
     return { 

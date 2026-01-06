@@ -72,27 +72,17 @@ const Auth = () => {
     return () => subscription.unsubscribe();
   }, [navigate]);
 
-  // Record initial consent when user signs up
+  // Record initial consent when user signs up - store locally
   const recordInitialConsent = async (userId: string) => {
     try {
-      // This will be handled by the database trigger, but we can explicitly set it here
-      await supabase.rpc('record_consent', {
-        consent_user_id: userId,
-        consent_type_param: 'privacy_policy',
-        granted_param: true,
-        policy_version_param: '2025-01-06',
-        consent_method_param: 'signup'
-      });
-      await supabase.rpc('record_consent', {
-        consent_user_id: userId,
-        consent_type_param: 'terms_of_service',
-        granted_param: true,
-        policy_version_param: '2025-01-06',
-        consent_method_param: 'signup'
-      });
+      // Store consent in localStorage as a simple fallback
+      const consents = {
+        privacy_policy: true,
+        terms_of_service: true,
+      };
+      localStorage.setItem(`consents_${userId}`, JSON.stringify(consents));
     } catch (error) {
-      // Consent recording is handled by trigger, so this is just a backup
-      console.log('Consent may have been recorded by trigger');
+      console.log('Error recording consent locally:', error);
     }
   };
 

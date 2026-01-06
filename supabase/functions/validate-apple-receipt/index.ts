@@ -83,9 +83,12 @@ async function verifyWithApple(
   return response.json();
 }
 
+type LatestReceiptInfo = NonNullable<AppleVerifyResponse["latest_receipt_info"]>[number];
+type PendingRenewalInfo = NonNullable<AppleVerifyResponse["pending_renewal_info"]>[number];
+
 function determineSubscriptionStatus(
-  latestReceipt: AppleVerifyResponse["latest_receipt_info"][0],
-  renewalInfo?: AppleVerifyResponse["pending_renewal_info"][0]
+  latestReceipt: LatestReceiptInfo,
+  renewalInfo?: PendingRenewalInfo
 ): string {
   const now = Date.now();
   const expiresDate = parseInt(latestReceipt.expires_date_ms || "0");

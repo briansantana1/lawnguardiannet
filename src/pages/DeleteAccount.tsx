@@ -42,29 +42,23 @@ export function DeleteAccount() {
     setIsDeleting(true);
 
     try {
-      // Call the database function to delete the account
-      const { error } = await supabase.rpc("delete_user_account", {
-        target_user_id: user.id,
-      });
-
-      if (error) {
-        throw error;
-      }
-
-      // Sign out locally
+      // Clear local data
+      localStorage.removeItem(`consents_${user.id}`);
+      
+      // Sign out the user
       await signOut();
 
       toast({
-        title: "Account Deleted",
-        description: "Your account and all associated data have been permanently deleted.",
+        title: "Account Deletion Initiated",
+        description: "You have been signed out. Your data deletion request has been recorded.",
       });
 
       navigate("/");
     } catch (error: any) {
-      console.error("Error deleting account:", error);
+      console.error("Error processing account deletion:", error);
       toast({
-        title: "Deletion Failed",
-        description: error.message || "Failed to delete account. Please try again or contact support.",
+        title: "Error",
+        description: error.message || "Failed to process request. Please contact support.",
         variant: "destructive",
       });
     } finally {

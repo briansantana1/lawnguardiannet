@@ -17,6 +17,8 @@ import { CancelMembership } from "./pages/CancelMembership";
 import { RestoreMembership } from "./pages/RestoreMembership";
 import { Purchase } from "./pages/Purchase";
 import { DeleteAccount } from "./pages/DeleteAccount";
+import Landing from "./pages/Landing";
+import Admin from "./pages/Admin";
 
 const queryClient = new QueryClient();
 
@@ -27,8 +29,10 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <Routes>
-          <Route path="/" element={<Index />} />
+          <Route path="/" element={<Landing />} />
+          <Route path="/app" element={<Index />} />
           <Route path="/auth" element={<Auth />} />
+          <Route path="/admin" element={<Admin />} />
           <Route path="/privacy" element={<PrivacyPolicy />} />
           <Route path="/terms" element={<TermsOfUse />} />
           <Route path="/contact" element={<Contact />} />
