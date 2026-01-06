@@ -164,23 +164,6 @@ const Landing = () => {
                 </a>
               </div>
 
-              {/* Social Proof */}
-              <div className="flex items-center gap-5 justify-center lg:justify-start text-sm text-muted-foreground">
-                <div className="flex items-center gap-2">
-                  <div className="flex -space-x-1.5">
-                    {[1,2,3,4].map((i) => (
-                      <div key={i} className="w-7 h-7 rounded-full bg-gradient-to-br from-lawn-300 to-lawn-500 border-2 border-background flex items-center justify-center text-[10px] text-white font-medium">
-                        {String.fromCharCode(64 + i)}
-                      </div>
-                    ))}
-                  </div>
-                  <span className="font-medium">10K+ Users</span>
-                </div>
-                <div className="flex items-center gap-1">
-                  <span className="text-amber-400">★★★★★</span>
-                  <span className="font-medium">4.8</span>
-                </div>
-              </div>
             </div>
 
             {/* Right: 3D Phone Mockup */}
