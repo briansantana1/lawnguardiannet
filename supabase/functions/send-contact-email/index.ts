@@ -38,6 +38,15 @@ const sendEmail = async (emailData: {
   return response.json();
 };
 
+// HTML entity encoding to prevent XSS in email content
+const escapeHtml = (text: string): string => {
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+};
 const handler = async (req: Request): Promise<Response> => {
   // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
@@ -74,20 +83,26 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    // Sanitize inputs
-    const sanitizedName = name.trim().slice(0, 100);
-    const sanitizedEmail = email.trim().slice(0, 255);
-    const sanitizedSubject = (subject || "Contact Form Submission").trim().slice(0, 200);
-    const sanitizedMessage = message.trim().slice(0, 5000);
+    // Trim and limit inputs
+    const trimmedName = name.trim().slice(0, 100);
+    const trimmedEmail = email.trim().slice(0, 255);
+    const trimmedSubject = (subject || "Contact Form Submission").trim().slice(0, 200);
+    const trimmedMessage = message.trim().slice(0, 5000);
 
-    console.log(`Sending contact email from ${sanitizedName} (${sanitizedEmail})`);
+    // HTML entity encoding for safe display in emails (prevents XSS)
+    const sanitizedName = escapeHtml(trimmedName);
+    const sanitizedEmail = escapeHtml(trimmedEmail);
+    const sanitizedSubject = escapeHtml(trimmedSubject);
+    const sanitizedMessage = escapeHtml(trimmedMessage);
+
+    console.log(`Sending contact email from ${trimmedName}`);
 
     // Send notification email to Lawn Guardian™
     const notificationResponse = await sendEmail({
       from: "Lawn Guardian™ <onboarding@resend.dev>",
       to: ["info.lawnguardian@yahoo.com"],
-      replyTo: sanitizedEmail,
-      subject: `[Contact Form] ${sanitizedSubject}`,
+      replyTo: trimmedEmail, // Use raw email for email headers
+      subject: `[Contact Form] ${trimmedSubject}`, // Subject can use raw (not HTML context)
       html: `
         <!DOCTYPE html>
         <html>
@@ -115,7 +130,7 @@ const handler = async (req: Request): Promise<Response> => {
               </div>
               <div class="field">
                 <div class="label">Email:</div>
-                <div class="value"><a href="mailto:${sanitizedEmail}">${sanitizedEmail}</a></div>
+                <div class="value"><a href="mailto:${encodeURIComponent(trimmedEmail)}">${sanitizedEmail}</a></div>
               </div>
               <div class="field">
                 <div class="label">Subject:</div>
@@ -140,7 +155,7 @@ const handler = async (req: Request): Promise<Response> => {
     // Send confirmation email to the user
     const confirmationResponse = await sendEmail({
       from: "Lawn Guardian <onboarding@resend.dev>",
-      to: [sanitizedEmail],
+      to: [trimmedEmail], // Use raw email for delivery
       subject: "We received your message - Lawn Guardian",
       html: `
         <!DOCTYPE html>
