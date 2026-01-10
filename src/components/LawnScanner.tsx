@@ -1,25 +1,48 @@
 import { useState, useRef, useCallback } from "react";
-import { Camera, Upload, X, Loader2, Sparkles, Leaf, Bug } from "lucide-react";
+import { Camera, Upload, X, Loader2, Sparkles, Leaf, Bug, FlaskConical, CheckCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 import { resizeImage } from "@/lib/imageUtils";
+import { useAuth } from "@/hooks/useAuth";
 
-interface LawnScannerProps {
-  onImageCaptured: (imageData: string) => void;
-  isAnalyzing?: boolean;
-  disabled?: boolean;
+type ProblemType = 'weed' | 'disease' | 'pest';
+
+interface IdentificationResult {
+  success: boolean;
+  problemType: ProblemType;
+  primaryId: string;
+  confidence: 'high' | 'medium' | 'low';
+  identification: string;
+  symptoms: string[];
+  severity: 'mild' | 'moderate' | 'severe';
+  alternates: string[];
+  treatments: {
+    cultural: string[];
+    chemical: {
+      product: string;
+      activeIngredients: string[];
+      timing: string;
+    }[];
+    prevention: string[];
+  };
 }
 
-export function LawnScanner({ 
-  onImageCaptured, 
-  isAnalyzing = false,
-  disabled = false 
-}: LawnScannerProps) {
+interface LawnScannerProps {
+  onResultReceived?: (result: IdentificationResult) => void;
+}
+
+export function LawnScanner({ onResultReceived }: LawnScannerProps) {
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [imageBase64, setImageBase64] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [problemType, setProblemType] = useState<ProblemType | null>(null);
+  const [result, setResult] = useState<IdentificationResult | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
+  const { user } = useAuth();
 
   const handleFileSelect = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -39,9 +62,7 @@ export function LawnScanner({
         setIsProcessing(true);
         const originalImage = reader.result as string;
 
-        // Log image fingerprint for debugging
-        const imageFingerprint = originalImage.length + '-' + originalImage.substring(originalImage.length - 50);
-        console.log('LawnScanner: New image loaded, fingerprint:', imageFingerprint);
+        console.log('LawnScanner: New image loaded');
 
         toast.info('Preparing image...', { duration: 1500 });
 
@@ -52,11 +73,13 @@ export function LawnScanner({
           quality: 0.85,
         });
 
-        const resizedFingerprint = resizedImage.length + '-' + resizedImage.substring(resizedImage.length - 50);
-        console.log('LawnScanner: Resized image fingerprint:', resizedFingerprint);
-
+        // Extract base64 data (remove data URL prefix)
+        const base64Data = resizedImage.split(',')[1];
+        
         setSelectedImage(resizedImage);
-        onImageCaptured(resizedImage);
+        setImageBase64(base64Data);
+        setProblemType(null);
+        setResult(null);
       } catch (error) {
         console.error('LawnScanner: Image processing error:', error);
         toast.error('Failed to process image. Please try again.');
@@ -71,10 +94,74 @@ export function LawnScanner({
     };
 
     reader.readAsDataURL(file);
-  }, [onImageCaptured]);
+  }, []);
+
+  const identifyProblem = async (type: ProblemType) => {
+    if (!imageBase64) {
+      toast.error('Please upload an image first');
+      return;
+    }
+
+    if (!user) {
+      toast.error('Please sign in to use AI identification', {
+        description: 'Create a free account to analyze lawn problems'
+      });
+      return;
+    }
+
+    setProblemType(type);
+    setIsAnalyzing(true);
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session) {
+        toast.error('Session expired. Please sign in again.');
+        setIsAnalyzing(false);
+        return;
+      }
+
+      const { data, error } = await supabase.functions.invoke('identify-lawn-problem', {
+        body: {
+          imageBase64: imageBase64,
+          problemType: type,
+          context: {
+            region: 'United States',
+            season: getCurrentSeason(),
+          }
+        }
+      });
+
+      if (error) throw error;
+
+      if (data.success) {
+        setResult(data);
+        onResultReceived?.(data);
+        toast.success('Problem identified!');
+      } else {
+        toast.error(data.error || 'Failed to identify problem');
+      }
+    } catch (error) {
+      console.error('LawnScanner: Identification error:', error);
+      toast.error('Failed to identify problem: ' + (error as Error).message);
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
+
+  const getCurrentSeason = () => {
+    const month = new Date().getMonth();
+    if (month >= 2 && month <= 4) return "spring";
+    if (month >= 5 && month <= 7) return "summer";
+    if (month >= 8 && month <= 10) return "fall";
+    return "winter";
+  };
 
   const clearImage = useCallback(() => {
     setSelectedImage(null);
+    setImageBase64(null);
+    setProblemType(null);
+    setResult(null);
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
@@ -84,21 +171,30 @@ export function LawnScanner({
   }, []);
 
   const openFileSelector = useCallback(() => {
-    if (!disabled && !isProcessing && !isAnalyzing) {
+    if (!isProcessing && !isAnalyzing) {
       fileInputRef.current?.click();
     }
-  }, [disabled, isProcessing, isAnalyzing]);
+  }, [isProcessing, isAnalyzing]);
 
   const openCamera = useCallback(() => {
-    if (!disabled && !isProcessing && !isAnalyzing) {
+    if (!isProcessing && !isAnalyzing) {
       cameraInputRef.current?.click();
     }
-  }, [disabled, isProcessing, isAnalyzing]);
+  }, [isProcessing, isAnalyzing]);
 
-  const isDisabled = disabled || isProcessing || isAnalyzing;
+  const isDisabled = isProcessing || isAnalyzing;
+
+  const getConfidenceColor = (confidence: string) => {
+    switch (confidence) {
+      case 'high': return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200';
+      case 'medium': return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200';
+      case 'low': return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200';
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  };
 
   return (
-    <div className="w-full">
+    <div className="w-full max-w-2xl mx-auto">
       {/* Hidden file inputs */}
       <input
         ref={fileInputRef}
@@ -120,9 +216,44 @@ export function LawnScanner({
 
       <Card variant="elevated" className="overflow-hidden">
         <CardContent className="p-0">
-          {!selectedImage ? (
+          {/* Image Preview */}
+          {selectedImage && (
+            <div className="relative">
+              <img
+                src={selectedImage}
+                alt="Lawn problem"
+                className={`w-full h-64 object-cover transition-all duration-300 ${
+                  isAnalyzing ? 'blur-sm scale-105' : ''
+                }`}
+              />
+              {!isAnalyzing && !result && (
+                <button
+                  onClick={clearImage}
+                  className="absolute top-3 right-3 w-10 h-10 rounded-full bg-card/90 backdrop-blur-sm flex items-center justify-center hover:bg-card transition-colors shadow-lg"
+                >
+                  <X className="w-5 h-5 text-foreground" />
+                </button>
+              )}
+              
+              {/* Analyzing Overlay */}
+              {isAnalyzing && (
+                <div className="absolute inset-0 bg-gradient-to-b from-lawn-900/80 via-lawn-800/70 to-lawn-900/80 flex flex-col items-center justify-center">
+                  <div className="relative">
+                    <div className="absolute inset-0 w-20 h-20 rounded-full bg-lawn-400/30 animate-ping" />
+                    <div className="relative w-20 h-20 rounded-full bg-gradient-to-br from-lawn-400 to-lawn-600 flex items-center justify-center shadow-lg">
+                      <Sparkles className="w-10 h-10 text-white animate-pulse" />
+                    </div>
+                  </div>
+                  <p className="mt-6 text-white font-semibold text-lg">Analyzing your lawn problem...</p>
+                  <p className="text-lawn-200 text-sm mt-1">This may take a few seconds</p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Camera Input - No Image */}
+          {!selectedImage && (
             <div className="p-8">
-              {/* Upload Area */}
               <button
                 onClick={openFileSelector}
                 disabled={isDisabled}
@@ -143,16 +274,15 @@ export function LawnScanner({
                       <Camera className="w-8 h-8 text-primary-foreground" />
                     </div>
                     <p className="font-semibold text-foreground mb-1">
-                      Upload a photo of your lawn problem
+                      Take Photo of Lawn Problem
                     </p>
                     <p className="text-sm text-muted-foreground text-center px-4">
-                      A clear, focused photo helps our AI provide an accurate diagnosis
+                      Tap to use camera or upload a photo
                     </p>
                   </>
                 )}
               </button>
 
-              {/* Alternative Buttons */}
               <div className="flex gap-4 mt-6">
                 <Button
                   variant="secondary"
@@ -174,79 +304,155 @@ export function LawnScanner({
                 </Button>
               </div>
             </div>
-          ) : (
-            <div className="p-6">
-              {/* Selected Image Preview with Analyzing Overlay */}
-              <div className="relative aspect-video rounded-xl overflow-hidden mb-6 group">
-                <img
-                  src={selectedImage}
-                  alt="Lawn photo"
-                  className={`w-full h-full object-cover transition-all duration-300 ${
-                    isAnalyzing ? 'scale-105 blur-sm' : ''
-                  }`}
-                />
+          )}
 
-                {/* Analyzing Overlay */}
-                {isAnalyzing && (
-                  <div className="absolute inset-0 bg-gradient-to-b from-lawn-900/80 via-lawn-800/70 to-lawn-900/80 flex flex-col items-center justify-center">
-                    <div className="relative">
-                      {/* Pulsing rings */}
-                      <div className="absolute inset-0 w-20 h-20 rounded-full bg-lawn-400/30 animate-ping" />
-                      <div 
-                        className="absolute inset-2 w-16 h-16 rounded-full bg-lawn-400/40 animate-ping" 
-                        style={{ animationDelay: '0.2s' }} 
-                      />
-                      <div className="relative w-20 h-20 rounded-full bg-gradient-to-br from-lawn-400 to-lawn-600 flex items-center justify-center shadow-lg">
-                        <Sparkles className="w-10 h-10 text-white animate-pulse" />
-                      </div>
-                    </div>
-                    <p className="mt-6 text-white font-semibold text-lg">Analyzing your lawn...</p>
-                    <p className="text-lawn-200 text-sm mt-1">AI-Powered Analysis</p>
-                    <div className="flex items-center gap-3 mt-4">
-                      <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/10 text-xs text-white">
-                        <Leaf className="w-3 h-3" />
-                        Identifying plants
-                      </div>
-                      <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/10 text-xs text-white">
-                        <Bug className="w-3 h-3" />
-                        Detecting issues
-                      </div>
-                    </div>
+          {/* Problem Type Selection */}
+          {selectedImage && !isAnalyzing && !result && (
+            <div className="p-6 space-y-4">
+              <h3 className="text-lg font-semibold text-foreground text-center">
+                What type of problem is this?
+              </h3>
+              <div className="grid gap-3">
+                <Button
+                  onClick={() => identifyProblem('weed')}
+                  className="w-full bg-green-600 hover:bg-green-700 text-white p-4 h-auto"
+                  disabled={isDisabled}
+                >
+                  <Leaf className="w-5 h-5 mr-2" />
+                  🌿 Weed
+                </Button>
+                <Button
+                  onClick={() => identifyProblem('disease')}
+                  className="w-full bg-yellow-600 hover:bg-yellow-700 text-white p-4 h-auto"
+                  disabled={isDisabled}
+                >
+                  <FlaskConical className="w-5 h-5 mr-2" />
+                  🦠 Disease
+                </Button>
+                <Button
+                  onClick={() => identifyProblem('pest')}
+                  className="w-full bg-red-600 hover:bg-red-700 text-white p-4 h-auto"
+                  disabled={isDisabled}
+                >
+                  <Bug className="w-5 h-5 mr-2" />
+                  🐛 Pest/Insect
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={clearImage}
+                  className="w-full"
+                >
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* Results */}
+          {result && (
+            <div className="p-6">
+              <div className="bg-gradient-to-br from-lawn-50 to-lawn-100 dark:from-lawn-900/50 dark:to-lawn-800/50 rounded-xl p-6 space-y-4">
+                {/* Confidence Badge */}
+                <div className="flex justify-end">
+                  <span className={`px-3 py-1 rounded-full text-xs font-semibold capitalize ${getConfidenceColor(result.confidence)}`}>
+                    {result.confidence} Confidence
+                  </span>
+                </div>
+
+                {/* Primary Identification */}
+                <div className="text-center">
+                  <h3 className="text-2xl font-bold text-foreground">
+                    {result.primaryId}
+                  </h3>
+                </div>
+
+                {/* Full Analysis */}
+                <div className="bg-card/80 rounded-lg p-4">
+                  <p className="text-muted-foreground leading-relaxed">
+                    {result.identification}
+                  </p>
+                </div>
+
+                {/* Symptoms */}
+                {result.symptoms && result.symptoms.length > 0 && (
+                  <div className="space-y-2">
+                    <h4 className="font-semibold text-foreground">Observed Symptoms:</h4>
+                    <ul className="space-y-1">
+                      {result.symptoms.map((symptom, index) => (
+                        <li key={index} className="flex items-start gap-2 text-sm text-muted-foreground">
+                          <CheckCircle className="w-4 h-4 text-primary mt-0.5 flex-shrink-0" />
+                          {symptom}
+                        </li>
+                      ))}
+                    </ul>
                   </div>
                 )}
 
-                {/* Close button - only show when not analyzing */}
-                {!isAnalyzing && (
-                  <button
-                    onClick={clearImage}
-                    className="absolute top-3 right-3 w-10 h-10 rounded-full bg-card/90 backdrop-blur-sm flex items-center justify-center hover:bg-card transition-colors shadow-lawn"
-                  >
-                    <X className="w-5 h-5 text-foreground" />
-                  </button>
+                {/* Treatments */}
+                {result.treatments && (
+                  <div className="space-y-3">
+                    <h4 className="font-semibold text-foreground">Recommended Treatment:</h4>
+                    
+                    {result.treatments.cultural && result.treatments.cultural.length > 0 && (
+                      <div>
+                        <p className="text-sm font-medium text-muted-foreground mb-1">Cultural Practices:</p>
+                        <ul className="list-disc list-inside text-sm text-muted-foreground space-y-1">
+                          {result.treatments.cultural.map((practice, index) => (
+                            <li key={index}>{practice}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                    
+                    {result.treatments.chemical && result.treatments.chemical.length > 0 && (
+                      <div>
+                        <p className="text-sm font-medium text-muted-foreground mb-1">Chemical Treatments:</p>
+                        {result.treatments.chemical.map((chem, index) => (
+                          <div key={index} className="bg-muted/50 rounded p-2 text-sm mb-2">
+                            <p className="font-medium">{chem.product}</p>
+                            {chem.activeIngredients && (
+                              <p className="text-xs text-muted-foreground">
+                                Active ingredients: {chem.activeIngredients.join(', ')}
+                              </p>
+                            )}
+                            {chem.timing && (
+                              <p className="text-xs text-muted-foreground">Timing: {chem.timing}</p>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 )}
-              </div>
 
-              {/* Action Buttons */}
-              {!isAnalyzing && (
-                <div className="flex gap-4">
+                {/* Action Buttons */}
+                <div className="flex flex-col gap-3 pt-4">
                   <Button
-                    variant="outline"
-                    className="flex-1"
                     onClick={clearImage}
+                    className="w-full"
                   >
-                    <X className="w-4 h-4" />
-                    Clear Photo
+                    Scan Another Problem
                   </Button>
-                  <Button
-                    variant="secondary"
-                    className="flex-1"
-                    onClick={openFileSelector}
-                  >
-                    <Upload className="w-4 h-4" />
-                    New Photo
-                  </Button>
+                  
+                  {/* Feedback buttons */}
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      className="flex-1"
+                      onClick={() => toast.success('Thanks for your feedback!')}
+                    >
+                      👍 Correct
+                    </Button>
+                    <Button
+                      variant="outline"
+                      className="flex-1"
+                      onClick={() => toast.info('Thanks for letting us know. We\'ll improve our AI!')}
+                    >
+                      👎 Incorrect
+                    </Button>
+                  </div>
                 </div>
-              )}
+              </div>
             </div>
           )}
         </CardContent>
