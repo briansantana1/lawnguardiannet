@@ -95,7 +95,7 @@ export function PrivacyPolicy() {
             <ul className="list-disc pl-6 text-muted-foreground space-y-2">
               <li><strong>Authentication Providers:</strong> If you sign in using Apple ID or Google, we receive your name (if provided) and email address as authorized by you.</li>
               <li><strong>Weather API Providers:</strong> We receive weather data based on your location to provide lawn care recommendations.</li>
-              <li><strong>Plant.id API:</strong> Lawn images are processed through Plant.id's AI service for plant, disease, and pest identification.</li>
+              <li><strong>OpenAI:</strong> Lawn images are processed through OpenAI's AI service for lawn analysis, disease, and pest identification.</li>
             </ul>
           </section>
 
@@ -137,7 +137,7 @@ export function PrivacyPolicy() {
             </p>
             <ul className="list-disc pl-6 text-muted-foreground space-y-2 mt-2">
               <li><strong>Cloud Hosting:</strong> Supabase (database and file storage)</li>
-              <li><strong>AI Processing:</strong> Plant.id API (lawn image analysis)</li>
+              <li><strong>AI Processing:</strong> OpenAI (lawn image analysis)</li>
               <li><strong>Weather Data:</strong> Weather API providers</li>
               <li><strong>Authentication:</strong> Apple and Google sign-in services</li>
             </ul>

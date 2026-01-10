@@ -14,7 +14,7 @@ export function ScanUpload() {
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisResult, setAnalysisResult] = useState<LawnAnalysisResult | null>(null);
-  const [grassType, setGrassType] = useState("cool-season");
+  const [grassType, setGrassType] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const { user } = useAuth();
@@ -30,6 +30,13 @@ export function ScanUpload() {
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (files && files.length > 0) {
+      // Check if grass type is selected
+      if (!grassType) {
+        toast.error('Please select your grass type before uploading a photo.');
+        e.target.value = '';
+        return;
+      }
+      
       const file = files[0];
       
       // Reset input value immediately to allow re-selection of same file
@@ -287,17 +294,24 @@ export function ScanUpload() {
           {/* Grass Type Selector */}
           <div className="mb-6">
             <label className="block text-sm font-medium text-foreground mb-2">
-              Your Grass Type
+              Select Your Grass Type <span className="text-red-500">*</span>
             </label>
             <select
               value={grassType}
               onChange={(e) => setGrassType(e.target.value)}
-              className="w-full px-4 py-3 rounded-xl border border-lawn-200 bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+              className={`w-full px-4 py-3 rounded-xl border bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-primary ${
+                grassType ? 'border-lawn-200' : 'border-amber-400'
+              }`}
+              required
             >
+              <option value="" disabled>-- Select Your Grass Type --</option>
               <option value="cool-season">Cool-Season (Kentucky Bluegrass, Fescue, Ryegrass)</option>
               <option value="warm-season">Warm-Season (Bermuda, Zoysia, St. Augustine)</option>
               <option value="transition-zone">Transition Zone Mix</option>
             </select>
+            {!grassType && (
+              <p className="text-amber-600 text-xs mt-1">Please select your grass type for accurate diagnosis</p>
+            )}
           </div>
 
           {/* Hidden file inputs - placed outside conditional to avoid ref issues */}
