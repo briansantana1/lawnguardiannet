@@ -1,5 +1,12 @@
 apply plugin: 'com.android.application'
 
+// Load local properties for signing credentials
+def localProperties = new Properties()
+def localPropertiesFile = rootProject.file('local.properties')
+if (localPropertiesFile.exists()) {
+    localProperties.load(new FileInputStream(localPropertiesFile))
+}
+
 android {
     namespace = "com.lawnguardian.app"
     compileSdk = rootProject.ext.compileSdkVersion
@@ -19,10 +26,10 @@ android {
     
     signingConfigs {
         release {
-            storeFile file("../lawn-guardian-release.keystore")
-            storePassword "lawnguardian123"
-            keyAlias "lawn-guardian"
-            keyPassword "lawnguardian123"
+            storeFile file(localProperties.getProperty('RELEASE_STORE_FILE', '../lawn-guardian-release.keystore'))
+            storePassword localProperties.getProperty('RELEASE_STORE_PASSWORD', '')
+            keyAlias localProperties.getProperty('RELEASE_KEY_ALIAS', '')
+            keyPassword localProperties.getProperty('RELEASE_KEY_PASSWORD', '')
         }
     }
     
