@@ -248,37 +248,35 @@ export function AnalysisResults({ result, imageUrl, onSave, onNewScan, isLoggedI
       <div className="container mx-auto px-4">
         <div className="max-w-4xl mx-auto">
           {/* Header */}
-          <div className="flex flex-col md:flex-row items-start gap-6 mb-8">
+          <div className="flex flex-col items-center gap-4 mb-8">
             {imageUrl && (
               <img 
                 src={imageUrl} 
                 alt="Analyzed lawn" 
-                className="w-full md:w-48 h-48 object-cover rounded-2xl shadow-lawn"
+                className="w-full h-48 object-cover rounded-2xl shadow-lawn"
               />
             )}
-            <div className="flex-1">
-              <h2 className="font-heading text-2xl md:text-3xl font-bold text-foreground mb-2">
-                Analysis Complete
-              </h2>
-              <div className="flex gap-3 mt-4">
-                {isLoggedIn ? (
-                  <Button variant="hero" onClick={onSave}>
-                    <Save className="w-4 h-4" />
-                    Save Treatment Plan
-                  </Button>
-                ) : (
-                  <Link to="/auth">
-                    <Button variant="hero">
-                      <Save className="w-4 h-4" />
-                      Sign in to Save Plan
-                    </Button>
-                  </Link>
-                )}
-                <Button variant="secondary" onClick={onNewScan}>
-                  <Camera className="w-4 h-4" />
-                  New Scan
+            <h2 className="font-heading text-2xl md:text-3xl font-bold text-foreground">
+              Analysis Complete
+            </h2>
+            <div className="flex gap-3">
+              {isLoggedIn ? (
+                <Button variant="outline" onClick={onSave} className="border-lawn-500 text-lawn-600 hover:bg-lawn-50">
+                  <Save className="w-4 h-4" />
+                  Save Treatment Plan
                 </Button>
-              </div>
+              ) : (
+                <Link to="/auth">
+                  <Button variant="outline" className="border-lawn-500 text-lawn-600 hover:bg-lawn-50">
+                    <Save className="w-4 h-4" />
+                    Sign in to Save Plan
+                  </Button>
+                </Link>
+              )}
+              <Button variant="outline" onClick={onNewScan} className="border-lawn-500 text-lawn-600 hover:bg-lawn-50">
+                <Camera className="w-4 h-4" />
+                New Scan
+              </Button>
             </div>
           </div>
 
