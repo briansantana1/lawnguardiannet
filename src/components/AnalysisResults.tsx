@@ -20,7 +20,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { LawnAnalysisResult, IdentifiedIssue, ChemicalTreatment } from "@/types/lawn-analysis";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 
@@ -243,6 +243,11 @@ const ChemicalTreatmentCard = ({ treatment }: { treatment: ChemicalTreatment }) 
 };
 
 export function AnalysisResults({ result, imageUrl, onSave, onNewScan, isLoggedIn }: AnalysisResultsProps) {
+  // Scroll to top when results are displayed
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, []);
+
   return (
     <section className="py-12 bg-lawn-50">
       <div className="container mx-auto px-4">
