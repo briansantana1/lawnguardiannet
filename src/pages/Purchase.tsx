@@ -44,7 +44,7 @@ const planDetails: Record<string, {
       "Prevention strategies",
       "Full history & tracking",
       "Ad-free experience",
-      "Cancel anytime",
+      "Cancel anytime - keep access until period ends",
     ],
     badge: "MOST POPULAR",
   },
@@ -444,7 +444,7 @@ export function Purchase() {
               Subscription automatically renews unless cancelled at least 24 hours before the end of the current period.
             </p>
             <p>
-              Cancel anytime in your {platform === 'ios' ? 'Apple ID settings' : platform === 'android' ? 'Google Play subscription settings' : 'app store settings'}.
+              Cancel anytime in your {platform === 'ios' ? 'Apple ID settings' : platform === 'android' ? 'Google Play subscription settings' : 'app store settings'}. You'll keep full access until the end of your current billing period.
             </p>
           </div>
 

@@ -46,6 +46,7 @@ const GoogleIcon = () => (
 
 const Auth = () => {
   const [isLogin, setIsLogin] = useState(true);
+  const [isForgotPassword, setIsForgotPassword] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [displayName, setDisplayName] = useState('');
@@ -169,6 +170,31 @@ const Auth = () => {
     }
   };
 
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email) {
+      toast.error('Please enter your email address.');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/auth`,
+      });
+      
+      if (error) throw error;
+      
+      toast.success('Password reset email sent! Check your inbox.');
+      setIsForgotPassword(false);
+    } catch (error: any) {
+      console.error('Password reset error:', error);
+      toast.error(error.message || 'Failed to send reset email.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleSocialSignIn = async (provider: 'apple' | 'google') => {
     setSocialLoading(provider);
     
@@ -221,16 +247,65 @@ const Auth = () => {
             </div>
           </div>
           <CardTitle className="text-2xl font-display text-lawn-800 dark:text-lawn-200">
-            {isLogin ? 'Welcome Back' : 'Create Account'}
+            {isForgotPassword ? 'Reset Password' : isLogin ? 'Welcome Back' : 'Create Account'}
           </CardTitle>
           <CardDescription>
-            {isLogin 
-              ? 'Sign in to access your lawn care dashboard' 
-              : 'Join Lawn Guardian™ to start caring for your lawn'
+            {isForgotPassword
+              ? 'Enter your email to receive a password reset link'
+              : isLogin 
+                ? 'Sign in to access your lawn care dashboard' 
+                : 'Join Lawn Guardian™ to start caring for your lawn'
             }
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
+          {isForgotPassword ? (
+            /* Forgot Password Form */
+            <form onSubmit={handleForgotPassword} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="reset-email">Email</Label>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                  <Input
+                    id="reset-email"
+                    type="email"
+                    placeholder="you@example.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                    className="pl-10"
+                  />
+                </div>
+              </div>
+
+              <Button 
+                type="submit" 
+                className="w-full" 
+                variant="hero"
+                disabled={loading}
+              >
+                {loading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Sending...
+                  </>
+                ) : (
+                  'Send Reset Link'
+                )}
+              </Button>
+
+              <div className="text-center">
+                <button
+                  type="button"
+                  onClick={() => setIsForgotPassword(false)}
+                  className="text-lawn-600 hover:text-lawn-700 dark:text-lawn-400 dark:hover:text-lawn-300 font-medium transition-colors"
+                >
+                  Back to Sign In
+                </button>
+              </div>
+            </form>
+          ) : (
+          <>
           {/* Social Sign-In Buttons */}
           <div className="space-y-3">
             <Button
@@ -378,6 +453,19 @@ const Auth = () => {
                 isLogin ? 'Sign In' : 'Create Account'
               )}
             </Button>
+
+            {/* Forgot Password Link - only show on login */}
+            {isLogin && (
+              <div className="text-center">
+                <button
+                  type="button"
+                  onClick={() => setIsForgotPassword(true)}
+                  className="text-sm text-muted-foreground hover:text-primary transition-colors"
+                >
+                  Forgot your password?
+                </button>
+              </div>
+            )}
           </form>
 
           {/* Terms notice for social sign-in */}
@@ -408,6 +496,8 @@ const Auth = () => {
               }
             </button>
           </div>
+          </>
+          )}
         </CardContent>
       </Card>
     </div>

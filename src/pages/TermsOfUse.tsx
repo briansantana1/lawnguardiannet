@@ -131,11 +131,27 @@ export function TermsOfUse() {
             <p className="text-muted-foreground leading-relaxed mt-2">
               <strong>For Android (Google Play):</strong> Go to Google Play Store &gt; Menu &gt; Subscriptions &gt; Lawn Guardian &gt; Cancel
             </p>
-            <p className="text-muted-foreground leading-relaxed mt-2">
-              Cancellation takes effect at the end of the current billing period. You will retain access to Pro features until then.
-            </p>
+            <div className="bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-xl p-4 my-4">
+              <p className="text-foreground font-medium mb-2">📅 What happens when you cancel:</p>
+              <ul className="list-disc pl-6 text-muted-foreground text-sm space-y-1">
+                <li>You will retain full access to Pro features until the end of your current billing period</li>
+                <li>Your subscription will not renew after the current period ends</li>
+                <li>After your subscription expires, you will be downgraded to the Free plan</li>
+              </ul>
+            </div>
 
-            <h3 className="text-lg font-medium mt-4 mb-2">5.5 Free Trial</h3>
+            <h3 className="text-lg font-medium mt-4 mb-2">5.5 Refund Policy</h3>
+            <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-xl p-4 my-4">
+              <p className="text-foreground font-medium mb-2">💳 Refund Information</p>
+              <ul className="list-disc pl-6 text-muted-foreground text-sm space-y-2">
+                <li><strong>No prorated refunds:</strong> We do not provide refunds or credits for partial subscription periods. When you cancel, you keep access until the end of your current billing period.</li>
+                <li><strong>Apple App Store:</strong> All refund requests for iOS purchases must be submitted directly to Apple through their refund process. We do not have the ability to issue refunds for App Store purchases.</li>
+                <li><strong>Google Play Store:</strong> All refund requests for Android purchases must be submitted directly to Google through their refund process. We do not have the ability to issue refunds for Google Play purchases.</li>
+                <li><strong>Annual subscriptions:</strong> If you purchased an annual subscription, the same policy applies - no prorated refunds for unused months.</li>
+              </ul>
+            </div>
+
+            <h3 className="text-lg font-medium mt-4 mb-2">5.6 Free Trial</h3>
             <p className="text-muted-foreground leading-relaxed">
               We may offer free trials for Pro features. Unless you cancel before the trial ends, you will be automatically charged for the subscription. You can cancel at any time during the trial period.
             </p>

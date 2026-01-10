@@ -16,6 +16,7 @@ export function ScanUpload() {
   const [analysisResult, setAnalysisResult] = useState<LawnAnalysisResult | null>(null);
   const [grassType, setGrassType] = useState("cool-season");
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
   const { user } = useAuth();
 
   const getCurrentSeason = () => {
@@ -30,11 +31,22 @@ export function ScanUpload() {
     const files = e.target.files;
     if (files && files.length > 0) {
       const file = files[0];
+      
+      // Reset input value immediately to allow re-selection of same file
+      // and prevent caching issues
+      if (e.target) {
+        e.target.value = '';
+      }
+      
       const reader = new FileReader();
       
       reader.onloadend = async () => {
         try {
           const originalImage = reader.result as string;
+          
+          // Clear previous results first
+          setAnalysisResult(null);
+          setSelectedImage(null);
           
           // Resize image for faster upload and analysis
           toast.info('Preparing image...', { duration: 1500 });
@@ -45,7 +57,6 @@ export function ScanUpload() {
           });
           
           setSelectedImage(resizedImage);
-          setAnalysisResult(null);
           
           // Automatically start analysis when photo is uploaded
           handleAnalyzeImage(resizedImage);
@@ -196,8 +207,12 @@ export function ScanUpload() {
   const clearImage = () => {
     setSelectedImage(null);
     setAnalysisResult(null);
+    // Reset both file inputs to allow re-selection
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
+    }
+    if (cameraInputRef.current) {
+      cameraInputRef.current.value = "";
     }
   };
 
@@ -285,6 +300,25 @@ export function ScanUpload() {
             </select>
           </div>
 
+          {/* Hidden file inputs - placed outside conditional to avoid ref issues */}
+          <input
+            ref={fileInputRef}
+            id="lawn-upload"
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={handleFileSelect}
+          />
+          <input
+            ref={cameraInputRef}
+            id="lawn-camera"
+            type="file"
+            accept="image/*"
+            capture="environment"
+            className="hidden"
+            onChange={handleFileSelect}
+          />
+
           {/* Upload Card */}
           <Card variant="elevated" className="overflow-hidden">
             <CardContent className="p-0">
@@ -305,15 +339,6 @@ export function ScanUpload() {
                       A clear, focused photo helps our AI provide an accurate diagnosis
                     </p>
                   </label>
-                  <input
-                    ref={fileInputRef}
-                    id="lawn-upload"
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={handleFileSelect}
-                  />
-
                   {/* Alternative Buttons */}
                   <div className="flex gap-4 mt-6">
                     <Button
@@ -327,7 +352,7 @@ export function ScanUpload() {
                     <Button
                       variant="scan"
                       className="flex-1"
-                      onClick={() => fileInputRef.current?.click()}
+                      onClick={() => cameraInputRef.current?.click()}
                     >
                       <Camera className="w-4 h-4" />
                       Use Camera
@@ -380,14 +405,6 @@ export function ScanUpload() {
                       </button>
                     )}
                   </div>
-
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={handleFileSelect}
-                  />
 
                   {/* Action Buttons - show different states */}
                   {isAnalyzing ? (

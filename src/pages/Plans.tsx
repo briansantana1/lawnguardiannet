@@ -216,7 +216,7 @@ export function Plans() {
                 </Button>
                 {plan.name !== "Free" && (
                   <p className="text-xs text-muted-foreground text-center mt-2">
-                    Cancel anytime
+                    Cancel anytime. Keep access until period ends.
                   </p>
                 )}
               </CardContent>
