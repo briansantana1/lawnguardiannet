@@ -233,12 +233,15 @@ export function WeatherAlerts() {
     if (user) {
       fetchScheduledNotifications();
       fetchNotificationPreferences();
-      // Trigger AI analysis when user logs in and weather data is available
-      if (weatherData.location !== "Loading..." && weatherData.temp !== 0 && !aiAnalysis) {
-        fetchAIAnalysis(weatherData);
-      }
     }
   }, [user]);
+
+  // Separate effect to handle AI analysis when user becomes available and weather is loaded
+  useEffect(() => {
+    if (user && weatherData.location !== "Loading..." && weatherData.temp !== 0 && !aiAnalysis && !aiLoading) {
+      fetchAIAnalysis(weatherData);
+    }
+  }, [user, weatherData, aiAnalysis, aiLoading]);
 
   // Fetch AI analysis when weather data is loaded (requires authentication)
   const fetchAIAnalysis = async (weather: WeatherData) => {
@@ -455,8 +458,7 @@ export function WeatherAlerts() {
         setWeatherData(newWeatherData);
         setSoilTempData({ temps: dailySoilTemps, loading: false });
         setLoading(false);
-        
-        fetchAIAnalysis(newWeatherData);
+        // AI analysis is triggered by the separate useEffect that watches user + weatherData
       } catch (error) {
         console.error("Error fetching weather data:", error);
         setLoading(false);
