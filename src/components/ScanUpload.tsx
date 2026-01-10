@@ -92,6 +92,12 @@ export function ScanUpload() {
   const handleAnalyzeImage = async (imageData: string) => {
     if (!imageData) return;
 
+    // Check if user is authenticated before calling the edge function
+    if (!user) {
+      toast.error('Please sign in to analyze your lawn photos.');
+      return;
+    }
+
     setIsAnalyzing(true);
     toast.info('Analyzing your lawn photo...', { duration: 2000 });
     console.log('Starting lawn analysis...');
