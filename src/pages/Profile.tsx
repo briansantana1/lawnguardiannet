@@ -1,13 +1,15 @@
 import { useState, useEffect } from "react";
-import { CreditCard, XCircle, RefreshCw, Mail, ChevronRight, LogOut, User, Save, ArrowLeft, Loader2, MapPin, Leaf, Trash2 } from "lucide-react";
+import { CreditCard, XCircle, RefreshCw, Mail, ChevronRight, LogOut, User, Save, ArrowLeft, Loader2, MapPin, Leaf, Trash2, Crown, ExternalLink, Calendar } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { BottomNavigation } from "@/components/BottomNavigation";
 import { useAuth } from "@/hooks/useAuth";
+import { usePurchases } from "@/hooks/usePurchases";
 import { Separator } from "@/components/ui/separator";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -61,6 +63,7 @@ interface ProfileData {
 export function Profile() {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
+  const { isPro, subscriptionDetails, isNative, getManageUrl, isLoading: subscriptionLoading } = usePurchases();
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -107,29 +110,56 @@ export function Profile() {
     if (!user) return;
     setSaving(true);
     try {
+      // Build update object - only include fields that exist in the table
+      const updateData: Record<string, any> = {
+        user_id: user.id,
+        display_name: profile.display_name.trim(),
+        location: profile.location.trim(),
+        updated_at: new Date().toISOString(),
+      };
+      
+      // Try to include grass_type (may not exist in all databases)
+      if (profile.grass_type) {
+        updateData.grass_type = profile.grass_type;
+      }
+
       const { error } = await supabase
         .from("profiles")
-        .update({
-          display_name: profile.display_name.trim(),
-          location: profile.location.trim(),
-          grass_type: profile.grass_type,
-        })
-        .eq("user_id", user.id);
+        .upsert(updateData, {
+          onConflict: 'user_id'
+        });
 
-      if (error) throw error;
+      if (error) {
+        // If grass_type column doesn't exist, try without it
+        if (error.message.includes('grass_type')) {
+          const { error: retryError } = await supabase
+            .from("profiles")
+            .upsert({
+              user_id: user.id,
+              display_name: profile.display_name.trim(),
+              location: profile.location.trim(),
+              updated_at: new Date().toISOString(),
+            }, {
+              onConflict: 'user_id'
+            });
+          if (retryError) throw retryError;
+        } else {
+          throw error;
+        }
+      }
       
       toast.success("Profile updated successfully!");
       setIsEditing(false);
     } catch (error: any) {
       console.error("Error saving profile:", error);
-      toast.error("Failed to save profile");
+      toast.error(`Failed to save profile: ${error.message}`);
     } finally {
       setSaving(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-background pb-20">
+    <div className="min-h-screen bg-background pb-32">
       <div className="container mx-auto px-4 py-8 max-w-lg">
         <button
           onClick={() => navigate("/")}
@@ -288,6 +318,76 @@ export function Profile() {
               <Link to="/auth">
                 <Button variant="default">Sign In</Button>
               </Link>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Subscription Status */}
+        {user && (
+          <Card variant="elevated" className={`mb-6 ${isPro ? 'ring-2 ring-lawn-500' : ''}`}>
+            <CardHeader className="pb-2">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Crown className={`w-5 h-5 ${isPro ? 'text-lawn-500' : 'text-muted-foreground'}`} />
+                  Subscription
+                </CardTitle>
+                {isPro && (
+                  <Badge className="bg-lawn-500 hover:bg-lawn-600">PRO</Badge>
+                )}
+              </div>
+            </CardHeader>
+            <CardContent>
+              {subscriptionLoading ? (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Loading subscription status...
+                </div>
+              ) : isPro && subscriptionDetails ? (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">Status</span>
+                    <span className="font-medium text-lawn-600">Active</span>
+                  </div>
+                  {subscriptionDetails.expirationDate && (
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground flex items-center gap-1">
+                        <Calendar className="w-3 h-3" />
+                        {subscriptionDetails.willRenew ? 'Renews' : 'Expires'}
+                      </span>
+                      <span className="font-medium">{subscriptionDetails.expirationDate}</span>
+                    </div>
+                  )}
+                  {isNative && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="w-full mt-2"
+                      onClick={() => {
+                        const url = getManageUrl();
+                        if (url) window.open(url, '_blank');
+                      }}
+                    >
+                      <ExternalLink className="w-4 h-4 mr-2" />
+                      Manage Subscription
+                    </Button>
+                  )}
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <p className="text-sm text-muted-foreground">
+                    Upgrade to Pro for unlimited AI-powered lawn scans and detailed treatment plans.
+                  </p>
+                  <Button
+                    variant="hero"
+                    size="sm"
+                    className="w-full"
+                    onClick={() => navigate('/plans')}
+                  >
+                    <Crown className="w-4 h-4 mr-2" />
+                    Upgrade to Pro
+                  </Button>
+                </div>
+              )}
             </CardContent>
           </Card>
         )}

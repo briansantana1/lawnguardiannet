@@ -9,6 +9,8 @@ import { Separator } from '@/components/ui/separator';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Leaf, Mail, Lock, User, Apple, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { Capacitor } from '@capacitor/core';
+import { Browser } from '@capacitor/browser';
 
 /**
  * Auth Page
@@ -53,24 +55,48 @@ const Auth = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
+    // Check session immediately and on auth state changes
+    const checkAndRedirect = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user) {
+        setSocialLoading(null);
+        setLoading(false);
+        navigate('/', { replace: true });
+        return true;
+      }
+      return false;
+    };
+
+    // Check immediately
+    checkAndRedirect();
+
+    // Also check periodically while social loading (in case deep link sets session)
+    let intervalId: NodeJS.Timeout | null = null;
+    if (socialLoading) {
+      intervalId = setInterval(() => {
+        checkAndRedirect();
+      }, 1000);
+    }
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      console.log('Auth state changed:', event, !!session);
+      setSocialLoading(null);
+      setLoading(false);
+      
       if (session?.user) {
         // Record consent for terms when signing up via social providers
         if (event === 'SIGNED_IN') {
           recordInitialConsent(session.user.id);
         }
-        navigate('/');
+        navigate('/', { replace: true });
       }
     });
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user) {
-        navigate('/');
-      }
-    });
-
-    return () => subscription.unsubscribe();
-  }, [navigate]);
+    return () => {
+      subscription.unsubscribe();
+      if (intervalId) clearInterval(intervalId);
+    };
+  }, [navigate, socialLoading]);
 
   // Record initial consent when user signs up - store locally
   const recordInitialConsent = async (userId: string) => {
@@ -144,27 +170,43 @@ const Auth = () => {
   };
 
   const handleSocialSignIn = async (provider: 'apple' | 'google') => {
-    // For social sign-in during registration, ensure terms are implicitly accepted
-    // by continuing (terms acceptance is shown in the UI)
-    
     setSocialLoading(provider);
     
     try {
-      const { error } = await supabase.auth.signInWithOAuth({
+      const isNative = Capacitor.isNativePlatform();
+      
+      // For native apps, redirect back to the app via deep link
+      // For web, use the current origin
+      const redirectUrl = isNative 
+        ? 'lawnguardian://callback' 
+        : `${window.location.origin}/auth`;
+      
+      const { data, error } = await supabase.auth.signInWithOAuth({
         provider,
         options: {
-          redirectTo: `${window.location.origin}/`,
+          redirectTo: redirectUrl,
+          skipBrowserRedirect: isNative,
           queryParams: provider === 'apple' ? {
-            // Request email and name from Apple
             scope: 'email name',
           } : undefined,
         },
       });
       
       if (error) throw error;
+      
+      // On native, open the OAuth URL in the system browser
+      if (isNative && data?.url) {
+        await Browser.open({ 
+          url: data.url,
+          windowName: '_self',
+          presentationStyle: 'popover'
+        });
+        
+        toast.info('Complete sign-in in browser, then return to app.', { duration: 5000 });
+      }
     } catch (error: any) {
       console.error(`${provider} sign-in error:`, error);
-      toast.error(`Failed to sign in with ${provider === 'apple' ? 'Apple' : 'Google'}. Please try again.`);
+      toast.error(`Failed to sign in with ${provider === 'apple' ? 'Apple' : 'Google'}.`);
       setSocialLoading(null);
     }
   };

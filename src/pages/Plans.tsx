@@ -40,7 +40,7 @@ const plans = [
     features: [
       { text: "Unlimited photo scans", included: true },
       { text: "AI-powered identification", included: true },
-      { text: "High-accuracy Plant.id API", included: true },
+      { text: "High-accuracy AI diagnosis", included: true },
       { text: "Detailed diagnosis reports", included: true },
       { text: "Treatment recommendations", included: true },
       { text: "Organic & chemical options", included: true },
@@ -67,7 +67,7 @@ const plans = [
       { text: "Everything in Pro Monthly", included: true },
       { text: "Unlimited photo scans", included: true },
       { text: "AI-powered identification", included: true },
-      { text: "High-accuracy Plant.id API", included: true },
+      { text: "High-accuracy AI diagnosis", included: true },
       { text: "Detailed diagnosis reports", included: true },
       { text: "Treatment recommendations", included: true },
       { text: "Organic & chemical options", included: true },
@@ -85,7 +85,7 @@ const plans = [
 ];
 
 const poweredByFeatures = [
-  { icon: Leaf, text: "Plant.id API", description: "99% accurate plant & disease identification" },
+  { icon: Leaf, text: "OpenAI Vision", description: "Expert lawn disease & pest identification" },
   { icon: Bug, text: "Pest Detection", description: "Identifies insects & lawn pests" },
   { icon: FlaskConical, text: "Treatment Database", description: "Expert-curated organic & chemical solutions" },
 ];

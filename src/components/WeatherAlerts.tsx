@@ -47,6 +47,7 @@ import { Json } from "@/integrations/supabase/types";
 import { useAuth } from "@/hooks/useAuth";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Capacitor } from "@capacitor/core";
 
 interface WeatherData {
   location: string;
@@ -247,11 +248,13 @@ export function WeatherAlerts() {
 
       if (error) {
         console.error("AI analysis error:", error);
-        toast({
-          title: "AI Analysis Unavailable",
-          description: "Using default recommendations. Try refreshing.",
-          variant: "destructive",
-        });
+        // Don't show error toast - just use fallback UI
+        return;
+      }
+
+      if (data?.error) {
+        console.error("AI analysis returned error:", data.error);
+        // Don't show error toast - just use fallback UI
         return;
       }
 
@@ -260,6 +263,7 @@ export function WeatherAlerts() {
       }
     } catch (error) {
       console.error("Failed to fetch AI analysis:", error);
+      // Don't show error toast - just use fallback UI
     } finally {
       setAiLoading(false);
     }
@@ -502,10 +506,19 @@ export function WeatherAlerts() {
   };
 
   const handleEnableNotifications = async () => {
+    // Check if running on native mobile platform
+    if (Capacitor.isNativePlatform()) {
+      toast({
+        title: "Coming Soon! 🔔",
+        description: "Push notifications for mobile are coming in a future update. We'll notify you when it's available!",
+      });
+      return;
+    }
+
     if (!("Notification" in window)) {
       toast({
         title: "Not Supported",
-        description: "Your browser doesn't support notifications.",
+        description: "Your browser doesn't support notifications. Try using Chrome, Firefox, or Edge.",
         variant: "destructive",
       });
       return;
@@ -984,9 +997,48 @@ export function WeatherAlerts() {
               </>
             ) : (
               <Card className="mb-4">
-                <CardContent className="p-6 text-center">
-                  <Sparkles className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
-                  <p className="text-muted-foreground">AI insights will appear once weather data loads</p>
+                <CardContent className="p-6">
+                  <div className="text-center mb-4">
+                    <Sparkles className="w-10 h-10 text-primary mx-auto mb-3" />
+                    <p className="text-muted-foreground">
+                      {weatherData.location === "Loading..." 
+                        ? "Loading weather data..."
+                        : "Sign in to get AI lawn insights"}
+                    </p>
+                  </div>
+                  
+                  {/* Default recommendations while AI loads */}
+                  <div className="space-y-3 mt-4">
+                    <div className="p-3 rounded-xl bg-lawn-50 border border-lawn-200">
+                      <div className="flex items-center gap-2 mb-1">
+                        <Droplet className="w-4 h-4 text-primary" />
+                        <span className="font-medium text-sm">General Tip</span>
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        Water deeply but infrequently to encourage deep root growth.
+                      </p>
+                    </div>
+                    <div className="p-3 rounded-xl bg-lawn-50 border border-lawn-200">
+                      <div className="flex items-center gap-2 mb-1">
+                        <Scissors className="w-4 h-4 text-primary" />
+                        <span className="font-medium text-sm">Mowing</span>
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        Never remove more than 1/3 of the grass blade at once.
+                      </p>
+                    </div>
+                  </div>
+                  
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="w-full mt-4"
+                    onClick={() => fetchAIAnalysis(weatherData)}
+                    disabled={aiLoading || weatherData.location === "Loading..."}
+                  >
+                    <RefreshCw className={`w-4 h-4 mr-2 ${aiLoading ? 'animate-spin' : ''}`} />
+                    {aiLoading ? "Analyzing..." : "Get AI Insights"}
+                  </Button>
                 </CardContent>
               </Card>
             )}

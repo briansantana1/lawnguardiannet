@@ -66,50 +66,17 @@ export interface PlantIdIssue {
 export async function diagnoseLawn(request: DiagnosisRequest): Promise<LawnAnalysisResult> {
   console.log('Starting lawn diagnosis...');
   
-  try {
-    // Step 1: Try Plant.id API first (via edge function)
-    let plantIdResult: PlantIdResult | null = null;
-    
-    try {
-      const { data, error } = await supabase.functions.invoke('identify-plant', {
-        body: {
-          imageBase64: request.imageBase64,
-          additionalImages: request.additionalImages,
-          latitude: request.latitude,
-          longitude: request.longitude,
-          includeHealth: true,
-        },
-      });
-
-      if (!error && data && data.source === 'plant_id') {
-        plantIdResult = data as PlantIdResult;
-        console.log('Plant.id API response received');
-      }
-    } catch (plantIdError) {
-      console.log('Plant.id API not available, falling back to AI analysis');
-    }
-
-    // Step 2: If Plant.id didn't work, fall back to existing AI analysis
-    if (!plantIdResult || plantIdResult.source === 'fallback') {
-      console.log('Using AI analysis fallback');
-      return await analyzeWithAI(request);
-    }
-
-    // Step 3: Enrich results with treatment database
-    const enrichedResult = await enrichWithTreatments(plantIdResult, request);
-    
-    return enrichedResult;
-
-  } catch (error) {
-    console.error('Diagnosis failed:', error);
-    throw error;
-  }
+  // Use OpenAI directly for lawn-specific diagnosis
+  // OpenAI GPT-4o-mini is better for lawn disease/pest/weed identification
+  return await analyzeWithAI(request);
 }
 
 /**
- * Fallback to existing AI analysis (GPT-5-mini)
+ * Fallback to existing AI analysis (GPT-4o-mini)
  */
 async function analyzeWithAI(request: DiagnosisRequest): Promise<LawnAnalysisResult> {
+  console.log('Calling OpenAI analyze-lawn function...');
+  
   const { data, error } = await supabase.functions.invoke('analyze-lawn', {
     body: {
       imageBase64: request.imageBase64,
@@ -122,9 +89,23 @@ async function analyzeWithAI(request: DiagnosisRequest): Promise<LawnAnalysisRes
   });
 
   if (error) {
+    console.error('OpenAI analysis error:', error);
     throw new Error(`AI analysis failed: ${error.message}`);
   }
 
+  // Check for API-level errors in the response
+  if (data?.error) {
+    console.error('OpenAI API error:', data.error);
+    throw new Error(data.error);
+  }
+
+  // Validate the response has the expected structure
+  if (!data || !data.diagnosis || !data.treatment_plan) {
+    console.error('Invalid response structure:', data);
+    throw new Error('Invalid analysis response - missing diagnosis or treatment plan');
+  }
+
+  console.log('OpenAI analysis successful');
   return data as LawnAnalysisResult;
 }
 

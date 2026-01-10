@@ -10,6 +10,7 @@ import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Leaf, Shield, Sparkles, Camera, Bell, Calendar, ArrowRight, CheckCircle2 } from "lucide-react";
 import { useSiteSettings } from "@/hooks/useSiteSettings";
+import { RevenueCatDebug } from "@/components/debug/RevenueCatDebug";
 
 // Apple App Store badge - Official style
 const AppStoreBadge = () => (
@@ -122,6 +123,11 @@ const Landing = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-lawn-50 via-background to-lawn-50/50 dark:from-lawn-950 dark:via-background dark:to-lawn-950/50 overflow-hidden">
+      {/* Debug Panel - TEMPORARY */}
+      <div className="container mx-auto px-4 py-4">
+        <RevenueCatDebug />
+      </div>
+      
       {/* Hero Section */}
       <section className="relative">
         {/* Background decoration */}

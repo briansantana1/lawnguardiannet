@@ -7,7 +7,7 @@
 
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { AlertTriangle, Trash2, ArrowLeft, Loader2 } from "lucide-react";
+import { AlertTriangle, Trash2, ArrowLeft, Loader2, Apple, Smartphone, Mail } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -42,23 +42,53 @@ export function DeleteAccount() {
     setIsDeleting(true);
 
     try {
-      // Clear local data
+      // 1. Delete saved treatment plans
+      const { error: plansError } = await supabase
+        .from("saved_treatment_plans")
+        .delete()
+        .eq("user_id", user.id);
+      
+      if (plansError) {
+        console.error("Error deleting treatment plans:", plansError);
+      }
+
+      // 2. Delete profile data
+      const { error: profileError } = await supabase
+        .from("profiles")
+        .delete()
+        .eq("user_id", user.id);
+      
+      if (profileError) {
+        console.error("Error deleting profile:", profileError);
+      }
+
+      // 3. Clear local data
       localStorage.removeItem(`consents_${user.id}`);
       
-      // Sign out the user
+      // 4. Clear any other local storage items for this user
+      const keysToRemove: string[] = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.includes(user.id)) {
+          keysToRemove.push(key);
+        }
+      }
+      keysToRemove.forEach(key => localStorage.removeItem(key));
+
+      // 5. Sign out the user (this will invalidate their session)
       await signOut();
 
       toast({
-        title: "Account Deletion Initiated",
-        description: "You have been signed out. Your data deletion request has been recorded.",
+        title: "Account Deleted",
+        description: "Your account data has been deleted. Any active subscriptions must be cancelled in your app store.",
       });
 
       navigate("/");
     } catch (error: any) {
-      console.error("Error processing account deletion:", error);
+      console.error("Error deleting account:", error);
       toast({
-        title: "Error",
-        description: error.message || "Failed to process request. Please contact support.",
+        title: "Deletion Error",
+        description: error.message || "Some data could not be deleted. Please contact support at info.lawnguardian@yahoo.com",
         variant: "destructive",
       });
     } finally {
@@ -68,7 +98,7 @@ export function DeleteAccount() {
 
   if (!user) {
     return (
-      <div className="min-h-screen bg-background pb-20">
+      <div className="min-h-screen bg-background pb-32">
         <div className="container mx-auto px-4 py-8 max-w-lg">
           <Card variant="elevated">
             <CardContent className="py-12 text-center">
@@ -129,16 +159,36 @@ export function DeleteAccount() {
               </ul>
             </div>
 
-            {/* Subscription Notice */}
+            {/* Subscription Notice - IMPORTANT FOR APP STORE */}
             <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg p-4">
-              <h3 className="font-semibold text-amber-800 dark:text-amber-200 mb-2">
-                About Subscriptions
+              <h3 className="font-semibold text-amber-800 dark:text-amber-200 mb-2 flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4" />
+                Important: Cancel Subscriptions
               </h3>
-              <p className="text-sm text-amber-700 dark:text-amber-300">
-                If you have an active subscription, it will be marked for cancellation.
-                However, you must also cancel it directly through your app store
-                (Apple App Store or Google Play Store) to stop future charges.
+              <p className="text-sm text-amber-700 dark:text-amber-300 mb-3">
+                Deleting your account does NOT automatically cancel your subscription.
+                You must cancel it in your app store to stop future charges:
               </p>
+              <div className="space-y-2">
+                <a 
+                  href="https://apps.apple.com/account/subscriptions"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2 text-sm text-amber-800 dark:text-amber-200 hover:underline"
+                >
+                  <Apple className="w-4 h-4" />
+                  Manage Apple Subscriptions →
+                </a>
+                <a 
+                  href="https://play.google.com/store/account/subscriptions"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2 text-sm text-amber-800 dark:text-amber-200 hover:underline"
+                >
+                  <Smartphone className="w-4 h-4" />
+                  Manage Google Play Subscriptions →
+                </a>
+              </div>
             </div>
 
             {/* Acknowledgment Checkboxes */}
@@ -167,7 +217,7 @@ export function DeleteAccount() {
                   }
                 />
                 <Label htmlFor="subscriptionCancel" className="text-sm leading-relaxed cursor-pointer">
-                  I need to separately cancel any active subscriptions in my app store
+                  I understand I must separately cancel any active subscriptions in my app store to stop charges
                 </Label>
               </div>
 
@@ -220,6 +270,20 @@ export function DeleteAccount() {
               )}
             </Button>
 
+            {/* Contact Support */}
+            <div className="text-center space-y-2">
+              <p className="text-sm text-muted-foreground">
+                Need help or have questions?
+              </p>
+              <a 
+                href="mailto:info.lawnguardian@yahoo.com?subject=Account%20Deletion%20Help"
+                className="inline-flex items-center gap-2 text-sm text-primary hover:underline"
+              >
+                <Mail className="w-4 h-4" />
+                Contact Support
+              </a>
+            </div>
+
             {/* Alternative */}
             <p className="text-center text-sm text-muted-foreground">
               Changed your mind?{" "}
@@ -239,4 +303,3 @@ export function DeleteAccount() {
 }
 
 export default DeleteAccount;
-

@@ -8,6 +8,7 @@ import { LawnAnalysisResult } from "@/types/lawn-analysis";
 import { AnalysisResults } from "@/components/AnalysisResults";
 import { useAuth } from "@/hooks/useAuth";
 import { diagnoseLawn } from "@/services/lawnDiagnosisService";
+import { resizeImage, dataUrlToBlob, generateImageFilename } from "@/lib/imageUtils";
 
 export function ScanUpload() {
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
@@ -25,18 +26,39 @@ export function ScanUpload() {
     return "winter";
   };
 
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (files && files.length > 0) {
       const file = files[0];
       const reader = new FileReader();
-      reader.onloadend = () => {
-        const imageData = reader.result as string;
-        setSelectedImage(imageData);
-        setAnalysisResult(null);
-        // Automatically start analysis when photo is uploaded
-        handleAnalyzeImage(imageData);
+      
+      reader.onloadend = async () => {
+        try {
+          const originalImage = reader.result as string;
+          
+          // Resize image for faster upload and analysis
+          toast.info('Preparing image...', { duration: 1500 });
+          const resizedImage = await resizeImage(originalImage, {
+            maxWidth: 1024,
+            maxHeight: 1024,
+            quality: 0.85,
+          });
+          
+          setSelectedImage(resizedImage);
+          setAnalysisResult(null);
+          
+          // Automatically start analysis when photo is uploaded
+          handleAnalyzeImage(resizedImage);
+        } catch (error) {
+          console.error('Image processing error:', error);
+          toast.error('Failed to process image. Please try again.');
+        }
       };
+      
+      reader.onerror = () => {
+        toast.error('Failed to read image file.');
+      };
+      
       reader.readAsDataURL(file);
     }
   };
@@ -46,9 +68,11 @@ export function ScanUpload() {
 
     setIsAnalyzing(true);
     toast.info('Analyzing your lawn photo...', { duration: 2000 });
+    console.log('Starting lawn analysis...');
     
     try {
-      // Try the new unified diagnosis service first (Plant.id + Treatment DB)
+      // Try Plant.id powered diagnosis first
+      console.log('Calling diagnoseLawn service...');
       const result = await diagnoseLawn({
         imageBase64: imageData,
         grassType,
@@ -56,42 +80,32 @@ export function ScanUpload() {
         location: "United States",
       });
 
-      setAnalysisResult(result);
-      toast.success('Analysis complete! Powered by Plant.id API');
-    } catch (diagnosisError) {
-      console.log('Using fallback analysis...', diagnosisError);
+      console.log('Diagnosis result:', result);
       
-      // Fallback to the original AI analysis
-      try {
-        const { data, error } = await supabase.functions.invoke('analyze-lawn', {
-          body: {
-            imageBase64: imageData,
-            grassType,
-            season: getCurrentSeason(),
-            location: "United States",
-          },
-        });
+      if (!result) {
+        console.error('No result returned from diagnosis');
+        toast.error('Analysis returned no results. Please try again.');
+        return;
+      }
 
-        if (error) {
-          console.error('Analysis error:', error);
-          toast.error('Failed to analyze image. Please try again.');
-          return;
-        }
-
-        if (data.error) {
-          console.error('API error:', data.error);
-          toast.error(data.error);
-          return;
-        }
-
-        setAnalysisResult(data);
-        toast.success('Analysis complete!');
-      } catch (fallbackError) {
-        console.error('Error:', fallbackError);
-        toast.error('An unexpected error occurred. Please try again.');
+      setAnalysisResult(result);
+      toast.success('Analysis complete!');
+    } catch (error: any) {
+      console.error('Diagnosis failed:', error);
+      console.error('Error details:', JSON.stringify(error, null, 2));
+      
+      // Show user-friendly error message
+      const errorMessage = error?.message || 'Unknown error';
+      if (errorMessage.includes('API key')) {
+        toast.error('API configuration error. Please contact support.');
+      } else if (errorMessage.includes('rate limit')) {
+        toast.error('Too many requests. Please wait a moment and try again.');
+      } else {
+        toast.error(`Analysis failed: ${errorMessage}`);
       }
     } finally {
       setIsAnalyzing(false);
+      console.log('Analysis complete, isAnalyzing set to false');
     }
   };
 
@@ -102,30 +116,80 @@ export function ScanUpload() {
   };
 
   const handleSavePlan = async () => {
-    if (!user) {
-      toast.error('Please sign in to save your treatment plan.');
+    // Check auth status first
+    const { data: sessionData } = await supabase.auth.getSession();
+    const session = sessionData?.session;
+    
+    if (!session) {
+      toast.error('Not logged in. Please sign in first.', { duration: 5000 });
       return;
     }
 
-    if (!analysisResult) return;
+    if (!analysisResult) {
+      toast.error('No analysis to save.');
+      return;
+    }
+
+    toast.info('Saving treatment plan...', { duration: 3000 });
 
     try {
-      const { error } = await supabase.from('saved_treatment_plans').insert([{
-        user_id: user.id,
-        image_url: selectedImage || null,
-        diagnosis: JSON.parse(JSON.stringify(analysisResult.diagnosis)),
-        treatment_plan: JSON.parse(JSON.stringify(analysisResult.treatment_plan)),
-        forecast: JSON.parse(JSON.stringify(analysisResult.forecast)),
+      let imageUrl: string | null = null;
+
+      // Upload image to Supabase Storage if available
+      if (selectedImage) {
+        try {
+          const filename = generateImageFilename(session.user.id);
+          const imageBlob = dataUrlToBlob(selectedImage);
+          
+          const { data: uploadData, error: uploadError } = await supabase.storage
+            .from('lawn-images')
+            .upload(filename, imageBlob, {
+              contentType: 'image/jpeg',
+              cacheControl: '3600',
+            });
+
+          if (uploadError) {
+            console.error('Image upload error:', uploadError);
+            // Continue without image - don't fail the whole save
+          } else if (uploadData) {
+            // Get public URL for the uploaded image
+            const { data: urlData } = supabase.storage
+              .from('lawn-images')
+              .getPublicUrl(uploadData.path);
+            
+            imageUrl = urlData.publicUrl;
+          }
+        } catch (uploadErr) {
+          console.error('Image upload failed:', uploadErr);
+          // Continue without image
+        }
+      }
+
+      // Save the treatment plan
+      const planData = {
+        user_id: session.user.id,
+        image_url: imageUrl,
+        diagnosis: analysisResult.diagnosis,
+        treatment_plan: analysisResult.treatment_plan,
+        forecast: analysisResult.forecast,
         grass_type: grassType,
         season: getCurrentSeason(),
-      }]);
+      };
 
-      if (error) throw error;
+      const { error } = await supabase
+        .from('saved_treatment_plans')
+        .insert(planData)
+        .select()
+        .single();
 
-      toast.success('Treatment plan saved to My Saved Plans!');
-    } catch (error) {
-      console.error('Save error:', error);
-      toast.error('Failed to save treatment plan.');
+      if (error) {
+        toast.error(`Save failed: ${error.message}`, { duration: 8000 });
+        return;
+      }
+
+      toast.success('Treatment plan saved!', { duration: 3000 });
+    } catch (error: any) {
+      toast.error(`Error: ${error.message}`, { duration: 8000 });
     }
   };
 
@@ -174,7 +238,7 @@ export function ScanUpload() {
             <div className="flex flex-wrap items-center justify-center gap-2">
               <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-lawn-100 dark:bg-lawn-900 text-xs font-medium text-lawn-700 dark:text-lawn-300">
                 <Leaf className="w-3.5 h-3.5" />
-                Plant.id API
+                AI-Powered
               </div>
               <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-100 dark:bg-amber-900 text-xs font-medium text-amber-700 dark:text-amber-300">
                 <Bug className="w-3.5 h-3.5" />
@@ -292,7 +356,7 @@ export function ScanUpload() {
                           </div>
                         </div>
                         <p className="mt-6 text-white font-semibold text-lg">Analyzing your lawn...</p>
-                        <p className="text-lawn-200 text-sm mt-1">Powered by Plant.id API</p>
+                        <p className="text-lawn-200 text-sm mt-1">Powered by OpenAI</p>
                         <div className="flex items-center gap-3 mt-4">
                           <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/10 text-xs text-white">
                             <Leaf className="w-3 h-3" />

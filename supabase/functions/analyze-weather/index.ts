@@ -53,10 +53,10 @@ serve(async (req) => {
     const userId = claimsData.claims.sub;
     console.log('analyze-weather: Authenticated user:', userId);
     const { weatherData } = await req.json() as { weatherData: WeatherData };
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
     
-    if (!LOVABLE_API_KEY) {
-      throw new Error("LOVABLE_API_KEY is not configured");
+    if (!OPENAI_API_KEY) {
+      throw new Error("OPENAI_API_KEY is not configured");
     }
 
     const systemPrompt = `You are an expert lawn care advisor analyzing current weather conditions. Based on the weather data provided, give practical, actionable lawn care recommendations.
@@ -101,14 +101,14 @@ Conditions: ${weatherData.conditions}
 
 Provide lawn care recommendations based on these conditions.`;
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const response = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        Authorization: `Bearer ${OPENAI_API_KEY}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model: "gpt-4o-mini",
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: userPrompt },

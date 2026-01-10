@@ -21,7 +21,7 @@ export function HeroSection() {
           {/* Badge */}
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-lawn-100 text-primary font-medium text-sm mb-8 animate-fade-in">
             <Sparkles className="w-4 h-4" />
-            Powered by Plant.id API • 99% Accuracy
+            Powered by OpenAI • Expert Diagnosis
           </div>
 
 
@@ -59,7 +59,7 @@ export function HeroSection() {
           >
             <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm text-xs font-medium text-gray-700 dark:text-gray-300 shadow-sm">
               <Leaf className="w-3.5 h-3.5 text-lawn-600" />
-              Plant.id Recognition
+              AI Recognition
             </div>
             <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm text-xs font-medium text-gray-700 dark:text-gray-300 shadow-sm">
               <Bug className="w-3.5 h-3.5 text-amber-600" />

@@ -1,13 +1,12 @@
-import { forwardRef } from "react";
 import { ArrowLeft, Shield, Database, Eye, Trash2, Globe, Bell, Lock } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { BottomNavigation } from "@/components/BottomNavigation";
 
-export const PrivacyPolicy = forwardRef<HTMLDivElement>((_, ref) => {
+export function PrivacyPolicy() {
   const navigate = useNavigate();
   
   return (
-    <div ref={ref} className="min-h-screen bg-background pb-20">
+    <div className="min-h-screen bg-background pb-32">
       <div className="container mx-auto px-4 py-8 max-w-4xl">
         <button
           onClick={() => navigate(-1)}
@@ -357,6 +356,4 @@ export const PrivacyPolicy = forwardRef<HTMLDivElement>((_, ref) => {
       <BottomNavigation />
     </div>
   );
-});
-
-PrivacyPolicy.displayName = "PrivacyPolicy";
+}
