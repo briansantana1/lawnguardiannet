@@ -75,7 +75,9 @@ export async function diagnoseLawn(request: DiagnosisRequest): Promise<LawnAnaly
  * Fallback to existing AI analysis (GPT-4o-mini)
  */
 async function analyzeWithAI(request: DiagnosisRequest): Promise<LawnAnalysisResult> {
-  console.log('Calling OpenAI analyze-lawn function...');
+  // Generate unique request ID to prevent any caching
+  const requestId = `${Date.now()}-${Math.random().toString(36).substring(7)}`;
+  console.log('Calling OpenAI analyze-lawn function...', { requestId });
   
   const { data, error } = await supabase.functions.invoke('analyze-lawn', {
     body: {
@@ -85,6 +87,7 @@ async function analyzeWithAI(request: DiagnosisRequest): Promise<LawnAnalysisRes
       season: request.season,
       location: request.location,
       multipleAngles: (request.additionalImages?.length || 0) > 0,
+      requestId, // Cache-busting unique ID
     },
   });
 

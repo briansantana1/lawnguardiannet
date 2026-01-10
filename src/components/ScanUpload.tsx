@@ -51,6 +51,10 @@ export function ScanUpload() {
         try {
           const originalImage = reader.result as string;
           
+          // Log image fingerprint to verify different images
+          const imageFingerprint = originalImage.length + '-' + originalImage.substring(originalImage.length - 50);
+          console.log('New image loaded, fingerprint:', imageFingerprint);
+          
           // Clear previous results first
           setAnalysisResult(null);
           setSelectedImage(null);
@@ -62,6 +66,10 @@ export function ScanUpload() {
             maxHeight: 1024,
             quality: 0.85,
           });
+          
+          // Log resized image fingerprint
+          const resizedFingerprint = resizedImage.length + '-' + resizedImage.substring(resizedImage.length - 50);
+          console.log('Resized image fingerprint:', resizedFingerprint);
           
           setSelectedImage(resizedImage);
           
