@@ -20,7 +20,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { LawnAnalysisResult, IdentifiedIssue, ChemicalTreatment } from "@/types/lawn-analysis";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 
@@ -243,13 +243,28 @@ const ChemicalTreatmentCard = ({ treatment }: { treatment: ChemicalTreatment }) 
 };
 
 export function AnalysisResults({ result, imageUrl, onSave, onNewScan, isLoggedIn }: AnalysisResultsProps) {
-  // Scroll to top when results are displayed
+  const topRef = useRef<HTMLDivElement | null>(null);
+
+  // Force-scroll the user to the top of the results view (works even if a scroll container is used)
   useEffect(() => {
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  }, []);
+    // Delay one tick to let the DOM swap from ScanUpload -> AnalysisResults
+    const t = window.setTimeout(() => {
+      topRef.current?.scrollIntoView({ behavior: "auto", block: "start" });
+
+      // Also reset the document scroll just in case the browser ignores scrollIntoView
+      const scrollingEl = document.scrollingElement as HTMLElement | null;
+      if (scrollingEl) scrollingEl.scrollTop = 0;
+      document.documentElement.scrollTop = 0;
+      document.body.scrollTop = 0;
+      window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+    }, 0);
+
+    return () => window.clearTimeout(t);
+  }, [result]);
 
   return (
     <section className="py-12 bg-lawn-50">
+      <div ref={topRef} />
       <div className="container mx-auto px-4">
         <div className="max-w-4xl mx-auto">
           {/* Header */}
