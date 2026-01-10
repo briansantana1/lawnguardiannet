@@ -233,12 +233,21 @@ export function WeatherAlerts() {
     if (user) {
       fetchScheduledNotifications();
       fetchNotificationPreferences();
+      // Trigger AI analysis when user logs in and weather data is available
+      if (weatherData.location !== "Loading..." && weatherData.temp !== 0 && !aiAnalysis) {
+        fetchAIAnalysis(weatherData);
+      }
     }
   }, [user]);
 
-  // Fetch AI analysis when weather data is loaded
+  // Fetch AI analysis when weather data is loaded (requires authentication)
   const fetchAIAnalysis = async (weather: WeatherData) => {
     if (weather.location === "Loading..." || weather.temp === 0) return;
+    if (!user) {
+      // User not logged in - skip AI analysis, will show fallback UI
+      console.log("AI analysis skipped: user not authenticated");
+      return;
+    }
     
     setAiLoading(true);
     try {
@@ -502,6 +511,14 @@ export function WeatherAlerts() {
   };
 
   const handleRefreshAnalysis = () => {
+    if (!user) {
+      toast({
+        title: "Sign In Required",
+        description: "Please sign in to get AI-powered lawn care recommendations.",
+        variant: "destructive",
+      });
+      return;
+    }
     fetchAIAnalysis(weatherData);
   };
 
