@@ -191,13 +191,13 @@ export function ScanUpload() {
         }
       }
 
-      // Save the treatment plan
+      // Save the treatment plan - cast to Json for Supabase compatibility
       const planData = {
         user_id: session.user.id,
         image_url: imageUrl,
-        diagnosis: analysisResult.diagnosis,
-        treatment_plan: analysisResult.treatment_plan,
-        forecast: analysisResult.forecast,
+        diagnosis: analysisResult.diagnosis as unknown as import('@/integrations/supabase/types').Json,
+        treatment_plan: analysisResult.treatment_plan as unknown as import('@/integrations/supabase/types').Json,
+        forecast: analysisResult.forecast as unknown as import('@/integrations/supabase/types').Json,
         grass_type: grassType,
         season: getCurrentSeason(),
       };

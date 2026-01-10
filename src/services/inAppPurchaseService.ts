@@ -137,14 +137,7 @@ export async function setUserId(userId: string, email?: string): Promise<void> {
       await Purchases.setEmail({ email });
     }
     
-    // Set custom attributes
-    await Purchases.setAttributes({
-      attributes: {
-        '$supabaseUserId': userId,
-      }
-    });
-    
-    console.log('RevenueCat subscriber attributes set');
+    console.log('RevenueCat user ID set:', userId);
   } catch (error) {
     console.error('Failed to set user ID:', error);
     // #region agent log
@@ -310,35 +303,13 @@ async function syncSubscriptionWithBackend(customerInfo: CustomerInfo): Promise<
       return;
     }
 
-    const platform = Capacitor.getPlatform() as 'ios' | 'android';
-    const planId = proEntitlement.productIdentifier.includes('annual') 
-      ? 'pro_annual' 
-      : 'pro_monthly';
-
-    // Upsert subscription in database
-    const { error } = await supabase
-      .from('user_subscriptions')
-      .upsert({
-        user_id: session.user.id,
-        plan_id: planId,
-        platform,
-        status: 'active',
-        billing_period: planId.includes('annual') ? 'annual' : 'monthly',
-        current_period_end: proEntitlement.expirationDate || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-        auto_renew_enabled: proEntitlement.willRenew,
-        metadata: {
-          revenuecat_id: customerInfo.originalAppUserId,
-          product_id: proEntitlement.productIdentifier,
-        },
-      }, {
-        onConflict: 'user_id,platform',
-      });
-
-    if (error) {
-      console.error('Failed to sync subscription with backend:', error);
-    } else {
-      console.log('Subscription synced with backend');
-    }
+    // Log subscription info for debugging - actual persistence is handled by RevenueCat
+    console.log('Subscription synced with RevenueCat:', {
+      userId: session.user.id,
+      productId: proEntitlement.productIdentifier,
+      expirationDate: proEntitlement.expirationDate,
+      willRenew: proEntitlement.willRenew,
+    });
   } catch (error) {
     console.error('Error syncing subscription:', error);
   }

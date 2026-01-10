@@ -110,18 +110,14 @@ export function Profile() {
     if (!user) return;
     setSaving(true);
     try {
-      // Build update object - only include fields that exist in the table
-      const updateData: Record<string, any> = {
+      // Build update object with proper typing
+      const updateData = {
         user_id: user.id,
         display_name: profile.display_name.trim(),
         location: profile.location.trim(),
         updated_at: new Date().toISOString(),
+        ...(profile.grass_type && { grass_type: profile.grass_type }),
       };
-      
-      // Try to include grass_type (may not exist in all databases)
-      if (profile.grass_type) {
-        updateData.grass_type = profile.grass_type;
-      }
 
       const { error } = await supabase
         .from("profiles")
