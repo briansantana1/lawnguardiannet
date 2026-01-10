@@ -120,6 +120,9 @@ export function ScanUpload() {
         return;
       }
 
+      // Ensure the user lands at the top of the results view
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+
       setAnalysisResult(result);
       toast.success('Analysis complete!');
     } catch (error: any) {
