@@ -113,32 +113,105 @@ COMMON WEED IDENTIFICATION KEYS:
 - Henbit/Deadnettle: square stems, opposite leaves, purple flowers
 - Spurge: opposite leaves, milky sap, prostrate growth
 
-===== DISEASE IDENTIFICATION PROTOCOL =====
+===== SYSTEMATIC DISEASE IDENTIFICATION PROTOCOL =====
 
-For DISEASES, require these specific indicators:
+When analyzing potential DISEASES, examine these characteristics systematically:
 
-BROWN PATCH (Rhizoctonia):
-- Irregular circular patches 6" to several feet
-- Smoke ring border (dark gray-green) in early morning
-- Tan/brown center with green grass inside
-- Leaf lesions with tan centers and brown borders
+SYMPTOM PATTERN:
+- Distribution: circular patches, irregular patches, scattered, uniform decline
+- Size and shape of affected areas (measure in inches/feet)
+- Pattern of spread: outward rings, random, linear along drainage, clustered
 
-DOLLAR SPOT (Clarireedia):
-- Circular patches 2-6 inches (silver dollar size)
-- Straw-colored lesions with reddish-brown borders
-- Hourglass-shaped lesions across leaf blade
-- Cottony mycelium in morning dew
+GRASS BLADE SYMPTOMS:
+- Discoloration type: yellowing, browning, reddening, bleaching, water-soaked
+- Lesion characteristics if present:
+  * Shape: oval, diamond, hourglass, irregular
+  * Size: pinpoint, 1/4", 1/2", length of blade
+  * Color: tan center, brown border, purple margin, gray
+  * Borders: defined vs diffuse
+- Texture changes: slimy, dry, shriveled, matted, greasy
+- Visible fungal structures: cottony mycelium, spores, mushrooms, fruiting bodies
 
-GRAY LEAF SPOT:
-- Diamond/oval lesions with gray centers
-- Brown/purple borders on lesions
-- Twisted/distorted leaf tips
-- Most common on St. Augustine, perennial ryegrass
+OVERALL TURF CONDITION:
+- Time of day indicators (morning dew present = critical for some diseases)
+- Thickness of affected turf vs surrounding healthy turf
+- Grass dying vs just discolored (pull test - does it detach easily?)
+- Root condition if visible (rotted, shortened, discolored)
+- Crown condition (firm vs mushy)
 
-COMMON MISIDENTIFICATION WARNINGS:
-- Dormant grass vs dead grass vs disease - warm-season grasses go brown in winter, this is NORMAL
-- Dollar spot vs brown patch vs drought stress - each has specific visual characteristics
-- Iron chlorosis vs nitrogen deficiency - check interveinal patterns
+ENVIRONMENTAL CLUES:
+- Moisture signs: dew, water droplets, matted/wet appearance
+- Location: shade vs full sun, low vs high areas
+- Air circulation: open vs enclosed by buildings/trees
+- Soil visible: compacted, wet, dry
+
+SPECIFIC DISEASE IDENTIFICATION KEYS:
+
+BROWN PATCH (Rhizoctonia solani):
+- Circular to irregular patches 6" to several feet diameter
+- "Smoke ring" border: dark gray/purple water-soaked margin visible in EARLY MORNING
+- Tan/brown outer ring with green grass inside (frog-eye pattern)
+- Individual lesions: tan centers with dark brown borders
+- Conditions: hot days (80-90°F), warm humid nights (>60°F), high nitrogen
+- Most common on: tall fescue, perennial ryegrass, St. Augustine
+
+DOLLAR SPOT (Clarireedia jacksonii):
+- Circular patches 2-6 inches (silver dollar to softball size)
+- Bleached straw color, may coalesce into larger areas
+- DIAGNOSTIC: hourglass-shaped lesions spanning leaf blade width
+- Cottony white mycelium visible in morning dew (cobweb-like)
+- Conditions: moderate temps (60-85°F), drought stress, low nitrogen
+- Most common on: bentgrass, bermudagrass, fine fescues, bluegrass
+
+GRAY LEAF SPOT (Pyricularia grisea):
+- Diamond/oval lesions with gray/tan centers
+- Dark brown to purple borders with yellow halo
+- Twisted, distorted leaf tips in severe cases
+- Rapid spread in hot, humid weather
+- Conditions: 80-90°F, high humidity, excessive nitrogen
+- Most common on: St. Augustine, perennial ryegrass
+
+PYTHIUM BLIGHT (Pythium spp.):
+- Irregular, rapidly expanding greasy/water-soaked patches
+- Grass matted, slimy, collapsed
+- White cottony mycelium in humid conditions (streamer-like)
+- Follows drainage patterns, low areas
+- Conditions: hot (85°F+), very humid, poor drainage
+- CRITICAL: can kill turf in 24 hours
+
+TAKE-ALL ROOT ROT:
+- Yellow/chlorotic patches, often irregular
+- Roots shortened, dark brown to black
+- Stolons/rhizomes darkened
+- Grass pulls easily from soil
+- Conditions: wet, cool to warm, high pH soils
+- Most common on: St. Augustine, bentgrass
+
+SPRING DEAD SPOT (Ophiosphaerella spp.):
+- Circular dead patches appearing as bermudagrass breaks dormancy
+- Patches remain dead while surrounding grass greens up
+- Often same spots year after year
+- Roots and stolons dark/rotted
+- Conditions: cool fall/spring, stressed bermudagrass
+
+RUST (Puccinia spp.):
+- Orange/yellow/brown powdery pustules on leaf blades
+- Rubs off on fingers, shoes, mower
+- Usually scattered throughout lawn, not patchy
+- Conditions: moderate temps, humidity, slow-growing turf
+
+LEAF SPOT/MELTING OUT (Bipolaris/Drechslera):
+- Dark purple/brown lesions with tan centers
+- Lesions may girdle entire leaf blade
+- Can progress to crown rot ("melting out")
+- Conditions: cool wet spring, transitioning to hot summer
+
+COMMON DISEASE MISIDENTIFICATION WARNINGS:
+- Dormant warm-season grass in winter = NORMAL, NOT disease
+- Drought stress vs dollar spot: drought is irregular, lacks lesions
+- Brown patch vs large patch: same pathogen, different conditions
+- Dog urine spots vs dollar spot: urine has green ring at edge
+- Fertilizer burn vs disease: follows application pattern
 
 ===== INSECT DAMAGE IDENTIFICATION PROTOCOL =====
 
