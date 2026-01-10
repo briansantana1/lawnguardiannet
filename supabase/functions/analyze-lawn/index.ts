@@ -213,32 +213,155 @@ COMMON DISEASE MISIDENTIFICATION WARNINGS:
 - Dog urine spots vs dollar spot: urine has green ring at edge
 - Fertilizer burn vs disease: follows application pattern
 
-===== INSECT DAMAGE IDENTIFICATION PROTOCOL =====
+===== SYSTEMATIC INSECT/PEST IDENTIFICATION PROTOCOL =====
 
-For INSECTS, require specific damage patterns:
+When analyzing potential INSECT damage, examine these characteristics systematically:
 
-WHITE GRUBS:
-- Irregular brown patches that lift like carpet (severed roots)
-- Visible C-shaped larvae when turf pulled back
-- Bird/animal digging activity
+IF INSECT IS VISIBLE - Physical Characteristics:
+- Size: length in mm (compare to grass blade width ~3-4mm)
+- Body shape: C-shaped grub, caterpillar, segmented, oval, elongated
+- Segments: distinct head/thorax/abdomen or fused
+- Legs: 6 (insect), 0 (larva stage), many (millipede/centipede)
+- Wings: present/absent, number, type (membranous, hardened)
+- Color and markings: solid, striped, spotted, iridescent
+- Life stage: egg, larva/grub, nymph, pupa, adult
+- Distinctive features: horns, cerci, prolegs, spines
+
+DAMAGE PATTERN ANALYSIS (when insect not directly visible):
+
+Surface Damage Indicators:
+- Chewed grass blades: ragged edges, notched, skeletonized
+- Discoloration pattern: yellowing, browning, bleaching
+- Distribution: scattered, clustered, expanding patches, trails
+
+Subsurface Damage Indicators:
+- Turf lifting like carpet (severed roots)
 - Spongy feel when walking
+- Easy pull test (grass detaches from soil)
+- Visible root damage when examined
 
-CHINCH BUGS:
-- Expanding patches starting in sunny, dry areas
-- Yellow halos around dead patches
-- Tiny black/white insects visible at thatch layer
-- Most common on St. Augustine
+Secondary Evidence:
+- Frass (insect droppings): color, size, location
+- Silk webbing: tunnels, surface mats
+- Burrows or mounds: size, soil type ejected
+- Animal activity: birds, skunks, raccoons digging
 
-SOD WEBWORMS:
-- Small brown patches, chewed grass blades
-- Ragged leaf edges
-- Green pellet frass
-- Moths flying at dusk
+Timing Clues:
+- Sudden overnight damage vs gradual decline
+- Morning/evening pest activity (many are nocturnal)
+- Seasonal patterns
 
-ARMYWORMS:
-- Rapidly expanding damage overnight
-- Clean-cut grass blades
-- Visible caterpillars, especially morning/evening
+SPECIFIC PEST IDENTIFICATION KEYS:
+
+WHITE GRUBS (Japanese Beetle, June Beetle, European Chafer larvae):
+Physical (if visible):
+- C-shaped, cream/white body with brown head
+- Size: 3/4" to 1.5" depending on species
+- 6 small legs near head, legless posterior
+- Raster pattern (hair arrangement on rear) distinguishes species
+Damage Pattern:
+- Irregular brown patches that LIFT LIKE CARPET
+- Spongy, detached turf (roots severed)
+- Birds (starlings, crows) or mammals (skunks, raccoons) digging
+- Worst damage: late summer through fall
+Diagnostic Test: Pull back turf, dig 2-4 inches - more than 10 grubs/sq ft = treatment threshold
+Grass Susceptibility: All lawn grasses, especially well-irrigated lawns
+
+CHINCH BUGS (Blissus spp.):
+Physical:
+- Adults: 1/8-1/6" black body with white wings folded flat
+- Nymphs: bright red/orange, later black with white band
+- Found at thatch layer, scatter when disturbed
+Damage Pattern:
+- Expanding patches in SUNNY, HOT, DRY areas
+- Yellow halo surrounding dead center
+- Often starts near sidewalks, driveways (heat islands)
+- Damage DOES NOT lift like carpet (roots intact)
+Diagnostic Test: Coffee can method - remove both ends, push into turf edge, fill with water - chinch bugs float up within 10 minutes
+Most Common On: St. Augustine (Southern chinch bug), fine fescues
+Season: Mid-summer through early fall
+
+SOD WEBWORMS (Crambus spp.):
+Physical:
+- Larvae: 3/4-1" tan/gray caterpillar with brown spots
+- Adults: buff/tan moths, snout-nosed, fold wings tight to body
+- Moths fly in zigzag pattern at dusk when disturbed
+Damage Pattern:
+- Small irregular brown patches 1-2" diameter, coalescing
+- Grass chewed off at crown level (not pulled)
+- RAGGED, notched leaf edges
+- Green pellet frass (droppings) visible in thatch
+- Silk-lined tunnels in thatch layer
+Diagnostic Test: Soapy water drench (2 tbsp dish soap per gallon per sq yard) - larvae emerge within minutes
+Season: Multiple generations spring through fall
+
+ARMYWORMS (Spodoptera spp., Mythimna spp.):
+Physical:
+- Larvae: 1-2" caterpillars, green to brown/black
+- Distinctive stripes along body sides
+- Smooth skin (no prominent hairs)
+- Feed in GROUPS, migrate together
+Damage Pattern:
+- RAPID damage overnight (army marches through)
+- Clean-cut grass blades (like mowing)
+- Damage front moves across lawn
+- Most active early morning, evening, cloudy days
+- Heavy infestations visible during day
+Diagnostic Test: Visual inspection at dawn/dusk; soapy water flush
+Season: Late summer/fall; more generations in South
+
+BILLBUGS (Sphenophorus spp.):
+Physical:
+- Adults: 1/4-1/2" brown/black weevils with long snout
+- Larvae: white legless grubs, brown head, found in stems/soil
+Damage Pattern:
+- Small dead patches expand slowly
+- Grass stems easily pull out, severed at base
+- Fine sawdust-like frass (excrement) at crown
+- Dead stems hollow with packed frass
+Diagnostic Test: Tug test - stems break at soil line; examine hollow stems
+Most Common On: Zoysiagrass, Kentucky bluegrass, fine fescues
+
+MOLE CRICKETS (Neoscapteriscus spp.):
+Physical:
+- Adults: 1-1.5" brown, velvety, enlarged front legs for digging
+- Cricket-like but cannot jump well
+- Visible at night, attracted to lights
+Damage Pattern:
+- Raised tunnels visible (like miniature mole runs)
+- Soil feels spongy
+- Brown streaks following tunnel patterns
+- Severe root damage
+Diagnostic Test: Soapy water flush at dusk
+Region: Primarily southeastern US coastal areas
+Season: Spring tunneling damage; adults most active March-May
+
+CUTWORMS:
+Physical:
+- Larvae: 1-2" smooth caterpillars, curl into C when disturbed
+- Various colors: brown, gray, black, striped
+- Nocturnal, hide in soil/thatch during day
+Damage Pattern:
+- Circular bare spots 1-2" diameter
+- Grass cut off at soil level
+- Damage scattered (not expanding patches)
+Diagnostic Test: Nighttime inspection with flashlight
+
+PEST DIFFERENTIAL DIAGNOSIS:
+
+Brown patches with:
+- Turf lifts like carpet → WHITE GRUBS (check by digging)
+- Turf firmly attached, sunny areas → CHINCH BUGS
+- Ragged leaf edges + frass → SOD WEBWORMS
+- Clean-cut leaves, rapid spread → ARMYWORMS
+- Hollow stems at base → BILLBUGS
+- Spongy tunnels → MOLE CRICKETS
+
+If damage pattern is ambiguous, recommend:
+1. Time of day to inspect (dawn/dusk for caterpillars)
+2. Soapy water flush test
+3. Dig test for grubs (2-4" depth)
+4. Coffee can flotation for chinch bugs
 
 ===== CONFIDENCE LEVEL REQUIREMENTS =====
 
