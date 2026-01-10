@@ -17,4 +17,19 @@ export default defineConfig(({ mode }) => ({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  // Production build optimizations
+  build: {
+    // Remove console.log and debugger statements in production
+    minify: 'terser',
+    terserOptions: {
+      compress: {
+        drop_console: mode === 'production',
+        drop_debugger: true,
+      },
+    },
+  },
+  // Define production environment
+  define: {
+    'process.env.NODE_ENV': JSON.stringify(mode),
+  },
 }));

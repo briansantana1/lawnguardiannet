@@ -60,8 +60,8 @@ const config: CapacitorConfig = {
     // Capture input from keyboard
     captureInput: true,
     
-    // Use Android's WebView - enable debugging to diagnose issues
-    webContentsDebuggingEnabled: true,
+    // Disable WebView debugging for production
+    webContentsDebuggingEnabled: false,
     
     // Build flavor
     flavor: 'production',
