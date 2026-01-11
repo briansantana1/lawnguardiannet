@@ -85,7 +85,7 @@ const plans = [
 ];
 
 const poweredByFeatures = [
-  { icon: Leaf, text: "OpenAI Vision", description: "Expert lawn disease & pest identification" },
+  { icon: Leaf, text: "Advanced AI Vision", description: "Expert lawn disease & pest identification" },
   { icon: Bug, text: "Pest Detection", description: "Identifies insects & lawn pests" },
   { icon: FlaskConical, text: "Treatment Database", description: "Expert-curated organic & chemical solutions" },
 ];

@@ -21,7 +21,7 @@ export function HeroSection() {
           {/* Badge */}
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-lawn-100 text-primary font-medium text-sm mb-8 animate-fade-in">
             <Sparkles className="w-4 h-4" />
-            Powered by OpenAI • Expert Diagnosis
+            AI-Powered • Expert Diagnosis
           </div>
 
 
