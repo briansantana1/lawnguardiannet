@@ -1,0 +1,83 @@
+# Lawn Guardian - Project Rules & Context
+
+## Project Overview
+- **App Name**: Lawn Guardian™
+- **Package ID**: `com.lawnguardian.app`
+- **Tech Stack**: React + TypeScript + Vite + Capacitor (iOS/Android)
+- **Backend**: Supabase (Auth, Database, Edge Functions)
+- **Payments**: RevenueCat for in-app purchases
+- **AI**: OpenAI for lawn diagnosis
+
+## Current Versions
+- **Android versionCode**: 8
+- **Android versionName**: 1.0.7
+- **iOS**: Not yet deployed
+
+## Subscription Plans
+- **Pro Weekly**: $5.99/week (product ID: `pro_weekly`)
+- **Pro Annual**: $79.99/year (product ID: `pro_annual`)
+- No free trial is offered
+
+## Key Configurations
+
+### Supabase
+- Project URL: `https://zxkugpfmwieexgldnlyl.supabase.co`
+- Auth callback: `https://zxkugpfmwieexgldnlyl.supabase.co/auth/v1/callback`
+- Deep link scheme: `lawnguardian://`
+
+### RevenueCat
+- Entitlement ID: `premium`
+- Offering ID: `default`
+- Package identifiers: `$rc_weekly`, `$rc_annual`
+
+### Android Signing
+- Keystore: `android/lawn-guardian-release.keystore`
+- Key alias: `lawn-guardian`
+- Credentials stored in: `android/local.properties` (gitignored)
+
+### Build Process (Windows/OneDrive workaround)
+- OneDrive causes file locking issues during Android builds
+- Always build from `C:\temp\lawnguardiannet` (copy project there first)
+- Use Android Studio1's JBR: `C:\Program Files\Android\Android Studio1\jbr`
+
+## Important Files
+- `src/services/inAppPurchaseService.ts` - RevenueCat integration
+- `src/services/lawnDiagnosisService.ts` - OpenAI lawn analysis
+- `src/hooks/usePurchases.ts` - Purchase hooks (weeklyPackage, annualPackage)
+- `src/pages/Purchase.tsx` - Purchase flow UI
+- `android/app/build.gradle` - Android version & signing config
+- `android/local.properties` - Keystore credentials (DO NOT COMMIT)
+
+## Code Conventions
+- Use TypeScript strict mode
+- Prefer functional components with hooks
+- Use shadcn/ui components from `@/components/ui/`
+- Toast notifications via `useToast` hook
+- Navigation via react-router-dom with HashRouter (required for Capacitor)
+
+## Common Issues & Solutions
+1. **"Unable to delete directory" during Android build**: Build from C:\temp instead of OneDrive folder
+2. **White screen on Android**: Check HashRouter is used (not BrowserRouter)
+3. **Google Sign-In not working**: Verify Google provider enabled in Supabase + OAuth credentials in Google Cloud Console
+4. **RevenueCat products not loading**: Check API keys in .env and product setup in RevenueCat dashboard
+
+## Environment Variables Required
+```
+VITE_SUPABASE_URL=https://zxkugpfmwieexgldnlyl.supabase.co
+VITE_SUPABASE_ANON_KEY=your_anon_key
+VITE_REVENUECAT_GOOGLE_API_KEY=your_revenuecat_google_key
+VITE_REVENUECAT_APPLE_API_KEY=your_revenuecat_apple_key
+VITE_OPENAI_API_KEY=your_openai_key
+```
+
+## Git Workflow
+- Main branch: `main`
+- Always commit and push after changes
+- Increment versionCode before each Google Play upload
+
+## DO NOT
+- Commit `android/local.properties` (contains keystore password)
+- Commit `.env` files with real API keys
+- Use BrowserRouter (breaks Capacitor)
+- Build Android from OneDrive folder (file locking)
+- Add debug components to production builds
