@@ -1,15 +1,19 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
+// API Keys from Supabase Secrets
 const PLANTNET_API_KEY = Deno.env.get('PLANTNET_API_KEY');
+const PLANT_ID_API_KEY = Deno.env.get('PLANT_ID_API_KEY');
+const ANTHROPIC_API_KEY = Deno.env.get('ANTHROPIC_API_KEY');
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Pl@ntNet API integration
+// ============================================================================
+// STEP 1: Pl@ntNet API - Plant/Weed Species Identification
+// ============================================================================
 interface PlantNetResult {
   success: boolean;
   scientificName?: string;
@@ -17,8 +21,11 @@ interface PlantNetResult {
   confidence?: number;
   family?: string;
   genus?: string;
-  isWeed?: boolean;
-  rawData?: unknown;
+  allResults?: Array<{
+    scientificName: string;
+    commonNames: string[];
+    score: number;
+  }>;
   error?: string;
 }
 
@@ -29,16 +36,15 @@ async function identifyWithPlantNet(imageBase64: string): Promise<PlantNetResult
   }
 
   try {
-    console.log('[PLANTNET] Starting identification...');
+    console.log('[PLANTNET] 🌿 Starting species identification...');
     
-    // Convert base64 to blob for form data
     const base64Data = imageBase64.replace(/^data:image\/\w+;base64,/, '');
     const binaryData = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0));
     const blob = new Blob([binaryData], { type: 'image/jpeg' });
     
     const formData = new FormData();
     formData.append('images', blob, 'lawn-image.jpg');
-    formData.append('organs', 'leaf'); // For lawn weeds, use 'leaf' organ type
+    formData.append('organs', 'leaf');
     
     const response = await fetch(
       `https://my-api.plantnet.org/v2/identify/all?api-key=${PLANTNET_API_KEY}&include-related-images=false`,
@@ -60,7 +66,7 @@ async function identifyWithPlantNet(imageBase64: string): Promise<PlantNetResult
     }
     
     const data = await response.json();
-    console.log('[PLANTNET] Response received:', JSON.stringify(data).substring(0, 500));
+    console.log('[PLANTNET] Response received');
     
     if (data.results && data.results.length > 0) {
       const topResult = data.results[0];
@@ -71,16 +77,18 @@ async function identifyWithPlantNet(imageBase64: string): Promise<PlantNetResult
         confidence: topResult.score,
         family: topResult.species?.family?.scientificName,
         genus: topResult.species?.genus?.scientificName,
-        isWeed: true, // Will be verified by Claude
-        rawData: data,
+        allResults: data.results.slice(0, 5).map((r: any) => ({
+          scientificName: r.species?.scientificName || r.species?.scientificNameWithoutAuthor,
+          commonNames: r.species?.commonNames || [],
+          score: r.score,
+        })),
       };
       
-      console.log('[PLANTNET] Identified:', result.scientificName, 'Confidence:', (result.confidence! * 100).toFixed(1) + '%');
+      console.log('[PLANTNET] ✅ Identified:', result.scientificName, 'Confidence:', ((result.confidence || 0) * 100).toFixed(1) + '%');
       return result;
-    } else {
-      console.log('[PLANTNET] No results found');
-      return { success: false, error: 'No plant identified in image' };
     }
+    
+    return { success: false, error: 'No plant identified' };
     
   } catch (error) {
     console.error('[PLANTNET] Error:', error);
@@ -88,6 +96,374 @@ async function identifyWithPlantNet(imageBase64: string): Promise<PlantNetResult
   }
 }
 
+// ============================================================================
+// STEP 2: Plant.id API - Disease & Health Assessment
+// ============================================================================
+interface PlantIdHealthResult {
+  success: boolean;
+  isHealthy?: boolean;
+  healthProbability?: number;
+  diseases?: Array<{
+    name: string;
+    probability: number;
+    description?: string;
+    treatment?: {
+      chemical?: string[];
+      biological?: string[];
+      prevention?: string[];
+    };
+  }>;
+  pests?: Array<{
+    name: string;
+    probability: number;
+    description?: string;
+  }>;
+  error?: string;
+}
+
+async function assessHealthWithPlantId(imageBase64: string): Promise<PlantIdHealthResult> {
+  if (!PLANT_ID_API_KEY) {
+    console.log('[PLANT.ID] API key not configured, skipping health assessment');
+    return { success: false, error: 'Plant.id API key not configured' };
+  }
+
+  try {
+    console.log('[PLANT.ID] 🔬 Starting health assessment...');
+    
+    // Clean up base64 data
+    const base64Data = imageBase64.replace(/^data:image\/\w+;base64,/, '');
+    
+    const requestBody = {
+      images: [`data:image/jpeg;base64,${base64Data}`],
+      latitude: null,
+      longitude: null,
+      similar_images: false,
+      health: 'all',
+      disease_details: ['description', 'treatment'],
+    };
+    
+    const response = await fetch('https://api.plant.id/v3/health_assessment', {
+      method: 'POST',
+      headers: {
+        'Api-Key': PLANT_ID_API_KEY,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(requestBody),
+    });
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('[PLANT.ID] API error:', response.status, errorText);
+      return { success: false, error: `Plant.id API error: ${response.status}` };
+    }
+    
+    const data = await response.json();
+    console.log('[PLANT.ID] Response received');
+    
+    const healthAssessment = data.result?.disease || data.result?.health_assessment;
+    
+    if (healthAssessment) {
+      const diseases = (healthAssessment.diseases || [])
+        .filter((d: any) => d.probability > 0.1)
+        .map((d: any) => ({
+          name: d.name || d.entity_id,
+          probability: d.probability,
+          description: d.disease_details?.description || d.details?.description,
+          treatment: d.disease_details?.treatment || d.details?.treatment,
+        }));
+      
+      const result: PlantIdHealthResult = {
+        success: true,
+        isHealthy: healthAssessment.is_healthy?.binary ?? (diseases.length === 0),
+        healthProbability: healthAssessment.is_healthy?.probability ?? 0.5,
+        diseases: diseases,
+      };
+      
+      console.log('[PLANT.ID] ✅ Health:', result.isHealthy ? 'Healthy' : 'Issues detected');
+      console.log('[PLANT.ID] Diseases found:', diseases.length);
+      
+      if (diseases.length > 0) {
+        diseases.slice(0, 3).forEach((d: any) => {
+          console.log(`  - ${d.name}: ${(d.probability * 100).toFixed(1)}%`);
+        });
+      }
+      
+      return result;
+    }
+    
+    return { success: false, error: 'No health data in response' };
+    
+  } catch (error) {
+    console.error('[PLANT.ID] Error:', error);
+    return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+  }
+}
+
+// ============================================================================
+// STEP 3: Claude Sonnet 4 - Final Analysis & Treatment Plan
+// ============================================================================
+async function analyzeWithClaude(
+  imageBase64: string,
+  additionalImages: string[] | undefined,
+  grassType: string,
+  season: string,
+  location: string,
+  plantNetResult: PlantNetResult,
+  plantIdResult: PlantIdHealthResult
+): Promise<any> {
+  if (!ANTHROPIC_API_KEY) {
+    throw new Error('Claude API key not configured. Please add ANTHROPIC_API_KEY to Supabase secrets.');
+  }
+
+  console.log('[CLAUDE] 🧠 Starting final analysis with Claude Sonnet 4...');
+  
+  const totalImages = 1 + (additionalImages?.length || 0);
+  const multipleAngles = totalImages > 1;
+  
+  // Build context from previous API results
+  let apiContext = `
+===== MULTI-API ANALYSIS CHAIN RESULTS =====
+
+`;
+
+  // Pl@ntNet results
+  if (plantNetResult.success && plantNetResult.confidence && plantNetResult.confidence > 0.2) {
+    apiContext += `🌿 PL@NTNET SPECIES IDENTIFICATION (Step 1):
+- Top Match: ${plantNetResult.scientificName || 'Unknown'}
+- Common Names: ${plantNetResult.commonNames?.join(', ') || 'Unknown'}
+- Confidence: ${((plantNetResult.confidence || 0) * 100).toFixed(1)}%
+- Family: ${plantNetResult.family || 'Unknown'}
+- Genus: ${plantNetResult.genus || 'Unknown'}
+`;
+    if (plantNetResult.allResults && plantNetResult.allResults.length > 1) {
+      apiContext += `- Alternative matches:\n`;
+      plantNetResult.allResults.slice(1, 4).forEach((r, i) => {
+        apiContext += `  ${i + 2}. ${r.scientificName} (${(r.score * 100).toFixed(1)}%)\n`;
+      });
+    }
+    apiContext += '\n';
+  } else {
+    apiContext += `🌿 PL@NTNET: No confident species identification (may be grass, not a weed)\n\n`;
+  }
+
+  // Plant.id health results
+  if (plantIdResult.success) {
+    apiContext += `🔬 PLANT.ID HEALTH ASSESSMENT (Step 2):
+- Overall Health: ${plantIdResult.isHealthy ? '✅ Healthy' : '⚠️ Issues Detected'}
+- Health Probability: ${((plantIdResult.healthProbability || 0) * 100).toFixed(1)}%
+`;
+    if (plantIdResult.diseases && plantIdResult.diseases.length > 0) {
+      apiContext += `- Detected Diseases/Issues:\n`;
+      plantIdResult.diseases.forEach((d, i) => {
+        apiContext += `  ${i + 1}. ${d.name} - ${(d.probability * 100).toFixed(1)}% confidence\n`;
+        if (d.description) {
+          apiContext += `     Description: ${d.description.substring(0, 200)}...\n`;
+        }
+        if (d.treatment) {
+          if (d.treatment.chemical?.length) {
+            apiContext += `     Chemical treatments: ${d.treatment.chemical.join(', ')}\n`;
+          }
+          if (d.treatment.biological?.length) {
+            apiContext += `     Biological treatments: ${d.treatment.biological.join(', ')}\n`;
+          }
+        }
+      });
+    } else {
+      apiContext += `- No diseases detected by Plant.id\n`;
+    }
+    apiContext += '\n';
+  } else {
+    apiContext += `🔬 PLANT.ID: ${plantIdResult.error || 'Health assessment unavailable'}\n\n`;
+  }
+
+  apiContext += `===== YOUR TASK (Step 3) =====
+As the final step in this multi-API chain, you must:
+1. CROSS-VALIDATE the results from Pl@ntNet and Plant.id with your own visual analysis
+2. RESOLVE any conflicts between API results using your expertise
+3. VERIFY identifications are appropriate for ${grassType || 'the lawn type'} in ${location || 'the region'} during ${season || 'this season'}
+4. Provide the FINAL authoritative diagnosis incorporating all data sources
+5. Create a comprehensive, actionable treatment plan
+
+If APIs disagree, explain the conflict and provide your expert judgment.
+If APIs found nothing but you see issues, identify them.
+If APIs found issues you don't see evidence for, note the discrepancy.
+
+`;
+
+  const systemPrompt = `You are an elite lawn care diagnostician - the final expert in a multi-API analysis chain. Your diagnosis will be cross-validated against Pl@ntNet (species ID) and Plant.id (health assessment) results provided above.
+
+${multipleAngles ? `MULTI-ANGLE ANALYSIS: You have ${totalImages} photos from different angles. Use ALL images to cross-reference symptoms.` : ''}
+
+${apiContext}
+
+CRITICAL: You are the FINAL authority. The user is paying for God-level accuracy. Be precise, be thorough, be confident when evidence supports it.
+
+IDENTIFICATION ACCURACY REQUIREMENTS:
+- HIGH confidence: 3+ confirming characteristics visible, consistent with API results
+- MEDIUM confidence: 1-2 characteristics, some API support
+- LOW confidence: Limited evidence, explain what would help
+
+YOUR RESPONSE MUST BE VALID JSON with this exact structure:
+{
+  "diagnosis": {
+    "identified_issues": [
+      {
+        "type": "disease" | "insect" | "weed" | "nutrient_deficiency" | "environmental",
+        "name": "specific name",
+        "confidence": "high" | "medium" | "low",
+        "confidence_score": 85,
+        "visual_evidence": "specific features observed",
+        "description": "detailed description",
+        "symptoms": ["list of symptoms"],
+        "severity": "mild" | "moderate" | "severe",
+        "alternate_possibilities": ["other possibilities"],
+        "api_validation": "confirmed by Plant.id" | "confirmed by Pl@ntNet" | "independent finding" | "conflicts with API - explain"
+      }
+    ],
+    "overall_health": "poor" | "fair" | "good" | "excellent",
+    "affected_area_estimate": "percentage or description",
+    "identification_notes": "any caveats, cross-validation notes"
+  },
+  "treatment_plan": {
+    "cultural_practices": [
+      {
+        "action": "specific action",
+        "timing": "when to perform",
+        "details": "additional details"
+      }
+    ],
+    "chemical_treatments": [
+      {
+        "product_type": "fungicide" | "insecticide" | "herbicide" | "fertilizer",
+        "active_ingredients": ["specific ingredients"],
+        "application_rate": "rate per 1,000 sq ft",
+        "application_frequency": "how often",
+        "timing": "best time to apply",
+        "precautions": ["safety notes"]
+      }
+    ],
+    "prevention_tips": ["preventive measures"]
+  },
+  "forecast": {
+    "risk_level": "low" | "medium" | "high",
+    "potential_outbreaks": [
+      {
+        "issue": "potential problem",
+        "likelihood": "percentage",
+        "conditions": "environmental conditions"
+      }
+    ],
+    "preventive_measures": [
+      {
+        "action": "preventive action",
+        "timing": "when to implement",
+        "reason": "why this helps"
+      }
+    ]
+  }
+}
+
+Context: Grass type is ${grassType || 'unknown'}, season is ${season || 'unknown'}, location is ${location || 'unknown'}.
+Brown/dormant warm-season grass in winter is NORMAL, not disease.
+Be specific with chemical recommendations: exact active ingredients, application rates, frequencies.`;
+
+  // Prepare image content for Claude
+  const imageContent: any[] = [];
+  
+  // Add main image
+  const mainImageBase64 = imageBase64.replace(/^data:image\/\w+;base64,/, '');
+  imageContent.push({
+    type: 'image',
+    source: {
+      type: 'base64',
+      media_type: 'image/jpeg',
+      data: mainImageBase64,
+    },
+  });
+  
+  // Add additional images if provided
+  if (additionalImages) {
+    for (const img of additionalImages) {
+      const imgBase64 = img.replace(/^data:image\/\w+;base64,/, '');
+      imageContent.push({
+        type: 'image',
+        source: {
+          type: 'base64',
+          media_type: 'image/jpeg',
+          data: imgBase64,
+        },
+      });
+    }
+  }
+  
+  // Add text prompt
+  imageContent.push({
+    type: 'text',
+    text: multipleAngles 
+      ? `Analyze these ${totalImages} lawn photos and provide your final expert diagnosis. Cross-validate with the API results above. Respond ONLY with the JSON object.`
+      : `Analyze this lawn image and provide your final expert diagnosis. Cross-validate with the API results above. Respond ONLY with the JSON object.`,
+  });
+
+  const response = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'x-api-key': ANTHROPIC_API_KEY,
+      'anthropic-version': '2023-06-01',
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 4096,
+      messages: [
+        {
+          role: 'user',
+          content: imageContent,
+        },
+      ],
+      system: systemPrompt,
+    }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error('[CLAUDE] API error:', response.status, errorText);
+    
+    if (response.status === 401) {
+      throw new Error('Invalid Anthropic API key. Please check ANTHROPIC_API_KEY in Supabase secrets.');
+    }
+    if (response.status === 429) {
+      throw new Error('Rate limit exceeded. Please try again in a moment.');
+    }
+    
+    throw new Error(`Claude API error: ${response.status}`);
+  }
+
+  const data = await response.json();
+  console.log('[CLAUDE] ✅ Response received');
+
+  const content = data.content?.[0]?.text;
+  if (!content) {
+    throw new Error('No content in Claude response');
+  }
+
+  // Parse JSON from response
+  let analysisResult;
+  try {
+    const jsonMatch = content.match(/```json\s*([\s\S]*?)\s*```/) || content.match(/```\s*([\s\S]*?)\s*```/);
+    const jsonString = jsonMatch ? jsonMatch[1] : content;
+    analysisResult = JSON.parse(jsonString.trim());
+  } catch (parseError) {
+    console.error('[CLAUDE] Failed to parse JSON:', parseError);
+    console.log('[CLAUDE] Raw content:', content.substring(0, 500));
+    throw new Error('Failed to parse analysis results');
+  }
+
+  return analysisResult;
+}
+
+// ============================================================================
+// MAIN HANDLER - Orchestrates the Multi-API Chain
+// ============================================================================
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -112,9 +488,9 @@ serve(async (req) => {
     });
 
     const token = authHeader.replace('Bearer ', '');
-    const { data: claimsData, error: claimsError } = await supabase.auth.getClaims(token);
+    const { data: claimsData, error: claimsError } = await supabase.auth.getUser(token);
     
-    if (claimsError || !claimsData?.claims) {
+    if (claimsError || !claimsData?.user) {
       console.error('analyze-lawn: Invalid token:', claimsError?.message);
       return new Response(
         JSON.stringify({ error: 'Unauthorized' }),
@@ -122,12 +498,11 @@ serve(async (req) => {
       );
     }
 
-    const userId = claimsData.claims.sub;
-    console.log('analyze-lawn: Authenticated user:', userId);
-    if (!LOVABLE_API_KEY) {
-      console.error('LOVABLE_API_KEY is not configured');
-      throw new Error('AI API key is not configured');
-    }
+    const userId = claimsData.user.id;
+    console.log('='.repeat(60));
+    console.log('🌿 LAWN GUARDIAN - MULTI-API ANALYSIS CHAIN');
+    console.log('='.repeat(60));
+    console.log('User:', userId);
 
     const { imageBase64, additionalImages, grassType, season, location, multipleAngles } = await req.json();
 
@@ -136,602 +511,61 @@ serve(async (req) => {
     }
 
     const totalImages = 1 + (additionalImages?.length || 0);
-    console.log('Analyzing lawn with GPT-5-mini...');
-    console.log('Total images:', totalImages);
-    console.log('Grass type:', grassType || 'Unknown');
-    console.log('Season:', season || 'Unknown');
-    console.log('Location:', location || 'Unknown');
+    console.log('📸 Images:', totalImages);
+    console.log('🌱 Grass type:', grassType || 'Unknown');
+    console.log('📅 Season:', season || 'Unknown');
+    console.log('📍 Location:', location || 'Unknown');
+    console.log('-'.repeat(60));
 
-    // Step 1: Call Pl@ntNet API first for plant/weed identification
-    let plantNetResult: PlantNetResult = { success: false };
-    let plantNetContext = '';
+    // ========== STEP 1: Pl@ntNet Species Identification ==========
+    console.log('\n[STEP 1/3] Pl@ntNet - Species Identification');
+    const plantNetResult = await identifyWithPlantNet(imageBase64);
     
-    try {
-      plantNetResult = await identifyWithPlantNet(imageBase64);
-      
-      if (plantNetResult.success && plantNetResult.confidence && plantNetResult.confidence > 0.3) {
-        console.log('[PLANTNET] Using Pl@ntNet results for enhanced analysis');
-        
-        plantNetContext = `
-===== PL@NTNET API PRE-IDENTIFICATION =====
-A plant identification API (Pl@ntNet) analyzed this image and identified it as:
-- Scientific Name: ${plantNetResult.scientificName || 'Unknown'}
-- Common Names: ${plantNetResult.commonNames?.join(', ') || 'Unknown'}
-- Confidence: ${((plantNetResult.confidence || 0) * 100).toFixed(1)}%
-- Family: ${plantNetResult.family || 'Unknown'}
-- Genus: ${plantNetResult.genus || 'Unknown'}
-
-Your tasks regarding this pre-identification:
-1. Verify if this is a common lawn weed or a grass species
-2. If it's a weed, incorporate this identification into your diagnosis with appropriate confidence
-3. If it's NOT a weed (like desirable grass, garden plants, or misidentified), note this in your analysis
-4. Cross-reference with visual symptoms you observe
-5. If Pl@ntNet confidence is below 50%, use your own analysis as primary and Pl@ntNet as supporting data
-
-`;
-      } else if (plantNetResult.error) {
-        console.log('[PLANTNET] Skipping - Error:', plantNetResult.error);
-      }
-    } catch (plantNetError) {
-      console.error('[PLANTNET] Failed, falling back to AI-only analysis:', plantNetError);
-    }
-
-    const systemPrompt = `You are an expert lawn care diagnostician and agronomist with 20+ years of experience specializing in turfgrass diseases, insects, and weeds. Your identifications guide treatment decisions for paid subscribers and MUST be highly accurate.
-
-${multipleAngles ? `MULTI-ANGLE ANALYSIS: You have been provided with ${totalImages} photos from different angles. Use ALL images together to:
-- Cross-reference symptoms visible in different photos
-- Confirm or rule out diagnoses based on consistent evidence across images
-- Identify issues that may only be visible from certain angles
-- Increase confidence when the same symptoms appear in multiple photos
-- Note any contradictory evidence between photos` : ''}
-
-CRITICAL IDENTIFICATION RULES:
-1. NEVER guess - if you cannot clearly see distinguishing features, mark confidence as "low" or state what's needed
-2. Require MULTIPLE confirming symptoms before identifying any issue with "high" confidence
-3. Consider the season (${season || 'unknown'}) and location (${location || 'unknown'}) - some issues are impossible in certain conditions
-4. If image quality or angle prevents accurate ID, explicitly state what additional views would help
-
-===== SYSTEMATIC WEED IDENTIFICATION PROTOCOL =====
-
-When analyzing potential WEEDS, examine these characteristics systematically:
-
-LEAF CHARACTERISTICS:
-- Shape: linear, oval, lobed, compound, heart-shaped, spatulate, lanceolate
-- Texture: smooth, hairy, waxy, succulent, powdery, glossy
-- Arrangement: opposite, alternate, whorled, basal rosette
-- Margins: smooth (entire), serrated, lobed, toothed, wavy
-
-GROWTH HABIT:
-- Pattern: upright, prostrate, spreading, clumping, mat-forming, climbing
-- Height and spread relative to surrounding turf
-- Root system if visible: tap root, fibrous, stolons, rhizomes, bulbs
-
-STEM CHARACTERISTICS:
-- Cross-section shape: round, square (mints/deadnettle), triangular (sedges), flat
-- Texture: smooth, hairy, succulent, ridged
-- Color: green, reddish, purplish, with nodes
-
-DISTINCTIVE FEATURES:
-- Flowers: color, shape, arrangement (spikes, clusters, solitary)
-- Seed heads or fruits: shape, color, dispersal mechanism
-- Unique markings: chevron patterns, spots, variegation
-- Sap: milky (spurge, dandelion), clear, colored
-
-COMMON WEED IDENTIFICATION KEYS:
-- Crabgrass: wide leaf blades, spreading growth, finger-like seed heads, hairy
-- Nutsedge: triangular stem ("sedges have edges"), 3-ranked leaves, glossy yellow-green
-- Dandelion: basal rosette, deeply lobed leaves pointing backward, milky sap, yellow flowers, puffball seedhead
-- Clover: 3-leaflet compound leaves, white/pink flower heads, creeping stems
-- Dollarweed: round coin-shaped leaves, scalloped edges, long petiole attached to center of leaf
-- Chickweed: opposite leaves, small white star-shaped 5-petal flowers (petals deeply notched), succulent stems
-- Henbit: square stems, opposite rounded leaves with scalloped edges, sessile upper leaves clasping stem, tubular pink-purple flowers in whorls, hairy
-- Purple Deadnettle: square stems, triangular/heart-shaped leaves with purple-red tint on upper leaves, purple hooded flowers, crowded at top
-- Spurge: opposite leaves, milky sap when broken, prostrate/mat-forming growth, reddish stems
-- Wild Violet: heart-shaped leaves with scalloped edges, basal rosette pattern, purple/blue/white 5-petal flowers with white throat, thick rhizomes (extremely difficult to control)
-- Broadleaf Plantain: large oval/egg-shaped leaves with prominent parallel veins, basal rosette flat to ground, tall rat-tail flower spikes, fibrous root system
-- Buckhorn Plantain: narrow lance-shaped ribbed leaves, basal rosette, bullet-shaped flower heads on long stalks, deeply grooved leaves
-- Ground Ivy (Creeping Charlie): round/kidney-shaped leaves with scalloped edges, square creeping stems, small funnel-shaped purple flowers, minty odor when crushed
-- Oxalis (Wood Sorrel): clover-like 3 heart-shaped leaflets, yellow 5-petal flowers, folds leaves at night, sour taste
-- Poa Annua (Annual Bluegrass): light green grass, boat-shaped leaf tips, white seedheads even when mowed short, shallow roots, clumping
-- Dallisgrass: coarse clumps, wide leaves, distinctive seed heads with black spots (ergot), grows faster than surrounding turf
-- Goosegrass: silvery-white flattened stems at base, radiating spoke-like growth pattern, zipper-like seedheads, tolerates compacted soil
-
-===== SYSTEMATIC DISEASE IDENTIFICATION PROTOCOL =====
-
-When analyzing potential DISEASES, examine these characteristics systematically:
-
-SYMPTOM PATTERN:
-- Distribution: circular patches, irregular patches, scattered, uniform decline
-- Size and shape of affected areas (measure in inches/feet)
-- Pattern of spread: outward rings, random, linear along drainage, clustered
-
-GRASS BLADE SYMPTOMS:
-- Discoloration type: yellowing, browning, reddening, bleaching, water-soaked
-- Lesion characteristics if present:
-  * Shape: oval, diamond, hourglass, irregular
-  * Size: pinpoint, 1/4", 1/2", length of blade
-  * Color: tan center, brown border, purple margin, gray
-  * Borders: defined vs diffuse
-- Texture changes: slimy, dry, shriveled, matted, greasy
-- Visible fungal structures: cottony mycelium, spores, mushrooms, fruiting bodies
-
-OVERALL TURF CONDITION:
-- Time of day indicators (morning dew present = critical for some diseases)
-- Thickness of affected turf vs surrounding healthy turf
-- Grass dying vs just discolored (pull test - does it detach easily?)
-- Root condition if visible (rotted, shortened, discolored)
-- Crown condition (firm vs mushy)
-
-ENVIRONMENTAL CLUES:
-- Moisture signs: dew, water droplets, matted/wet appearance
-- Location: shade vs full sun, low vs high areas
-- Air circulation: open vs enclosed by buildings/trees
-- Soil visible: compacted, wet, dry
-
-SPECIFIC DISEASE IDENTIFICATION KEYS:
-
-BROWN PATCH (Rhizoctonia solani):
-- Circular to irregular patches 6" to several feet diameter
-- "Smoke ring" border: dark gray/purple water-soaked margin visible in EARLY MORNING
-- Tan/brown outer ring with green grass inside (frog-eye pattern)
-- Individual lesions: tan centers with dark brown borders
-- Conditions: hot days (80-90°F), warm humid nights (>60°F), high nitrogen
-- Most common on: tall fescue, perennial ryegrass, St. Augustine
-
-DOLLAR SPOT (Clarireedia jacksonii):
-- Circular patches 2-6 inches (silver dollar to softball size)
-- Bleached straw color, may coalesce into larger areas
-- DIAGNOSTIC: hourglass-shaped lesions spanning leaf blade width
-- Cottony white mycelium visible in morning dew (cobweb-like)
-- Conditions: moderate temps (60-85°F), drought stress, low nitrogen
-- Most common on: bentgrass, bermudagrass, fine fescues, bluegrass
-
-GRAY LEAF SPOT (Pyricularia grisea):
-- Diamond/oval lesions with gray/tan centers
-- Dark brown to purple borders with yellow halo
-- Twisted, distorted leaf tips in severe cases
-- Rapid spread in hot, humid weather
-- Conditions: 80-90°F, high humidity, excessive nitrogen
-- Most common on: St. Augustine, perennial ryegrass
-
-PYTHIUM BLIGHT (Pythium spp.):
-- Irregular, rapidly expanding greasy/water-soaked patches
-- Grass matted, slimy, collapsed
-- White cottony mycelium in humid conditions (streamer-like)
-- Follows drainage patterns, low areas
-- Conditions: hot (85°F+), very humid, poor drainage
-- CRITICAL: can kill turf in 24 hours
-
-TAKE-ALL ROOT ROT:
-- Yellow/chlorotic patches, often irregular
-- Roots shortened, dark brown to black
-- Stolons/rhizomes darkened
-- Grass pulls easily from soil
-- Conditions: wet, cool to warm, high pH soils
-- Most common on: St. Augustine, bentgrass
-
-SPRING DEAD SPOT (Ophiosphaerella spp.):
-- Circular dead patches appearing as bermudagrass breaks dormancy
-- Patches remain dead while surrounding grass greens up
-- Often same spots year after year
-- Roots and stolons dark/rotted
-- Conditions: cool fall/spring, stressed bermudagrass
-
-RUST (Puccinia spp.):
-- Orange/yellow/brown powdery pustules on leaf blades
-- Rubs off on fingers, shoes, mower
-- Usually scattered throughout lawn, not patchy
-- Conditions: moderate temps, humidity, slow-growing turf
-
-LEAF SPOT/MELTING OUT (Bipolaris/Drechslera):
-- Dark purple/brown lesions with tan centers
-- Lesions may girdle entire leaf blade
-- Can progress to crown rot ("melting out")
-- Conditions: cool wet spring, transitioning to hot summer
-- Most common on: Kentucky bluegrass, tall fescue, perennial ryegrass
-
-FAIRY RING (Various Basidiomycete fungi):
-- Circular or arc-shaped rings/bands in lawn, 3-50+ feet diameter
-- THREE TYPES:
-  * Type 1: Dead grass band with mushrooms (most damaging - hydrophobic soil layer)
-  * Type 2: Dark green stimulated grass ring (nitrogen release from fungal breakdown)
-  * Type 3: Mushrooms/puffballs only, no grass symptoms
-- Mushrooms or puffballs may appear after rain (not always present)
-- Rings expand outward 6-24 inches per year
-- Interior grass may appear normal or stressed
-- Hydrophobic (water-repellent) soil in Type 1 - water beads up, won't penetrate
-- Conditions: any temps when soil moist, organic matter in soil (buried wood, roots)
-- DIAGNOSTIC: ring pattern is unmistakable, dig to find white fungal mycelium in soil
-
-RED THREAD (Laetisaria fuciformis):
-- Irregular patches 4 inches to 2 feet, pinkish-red cast
-- DIAGNOSTIC: red/pink threadlike strands (sclerotia) extending from leaf tips
-- Pink cottony flocks of mycelium visible in humid conditions
-- Grass blades tan/bleached, often with pink tips
-- Grass rarely killed, recovers with fertilization
-- Conditions: cool (60-75°F), humid, wet weather, low nitrogen
-- Most common on: perennial ryegrass, fine fescues, Kentucky bluegrass
-- Often confused with: pink patch (similar but different pathogen)
-
-SUMMER PATCH (Magnaporthe poae):
-- Circular to crescent/frog-eye patches 6 inches to 3 feet
-- DIAGNOSTIC: "frog-eye" pattern - dead ring with green center (survivor grass)
-- Tan/straw colored dead grass, may have reddish-bronze tinge
-- Patches often coalesce into irregular shapes
-- Roots, crowns, and stolons dark brown to black, rotted
-- Disease develops on ROOTS in spring but symptoms appear in SUMMER heat stress
-- Conditions: hot humid summer (85°F+), compacted soil, acidic pH, poor drainage
-- Most common on: Kentucky bluegrass, fine fescues, annual bluegrass
-- Often confused with: necrotic ring spot (cooler temps), brown patch (surface symptoms)
-
-NECROTIC RING SPOT (Ophiosphaerella korrae):
-- Similar to summer patch but occurs in COOLER conditions (65-80°F)
-- Circular patches with frog-eye pattern
-- Roots and crowns blackened, dark runner hyphae on roots
-- Most common on: Kentucky bluegrass
-- Conditions: cool wet spring/fall, compacted soil
-
-PINK SNOW MOLD (Microdochium nivale):
-- Circular patches 1-8 inches, may coalesce
-- White to pink mycelium at patch margins
-- Bleached tan grass, pink tinge when active
-- Does NOT require snow cover (unlike gray snow mold)
-- Conditions: cool (32-60°F), wet, late fall through spring
-- Most common on: all cool-season grasses
-
-GRAY SNOW MOLD (Typhula spp.):
-- Circular gray to straw-colored patches, 6-24 inches
-- Matted, crusty grass with gray-white mycelium
-- DIAGNOSTIC: small tan/brown sclerotia (hard fungal bodies) on leaves
-- Requires extended snow cover (60+ days)
-- Conditions: snow on unfrozen ground
-- Most common on: all cool-season grasses in northern climates
-
-COMMON DISEASE MISIDENTIFICATION WARNINGS:
-- Dormant warm-season grass in winter = NORMAL, NOT disease
-- Drought stress vs dollar spot: drought is irregular, lacks lesions
-- Brown patch vs large patch: same pathogen, different conditions
-- Dog urine spots vs dollar spot: urine has green ring at edge
-- Fertilizer burn vs disease: follows application pattern
-
-===== SYSTEMATIC INSECT/PEST IDENTIFICATION PROTOCOL =====
-
-When analyzing potential INSECT damage, examine these characteristics systematically:
-
-IF INSECT IS VISIBLE - Physical Characteristics:
-- Size: length in mm (compare to grass blade width ~3-4mm)
-- Body shape: C-shaped grub, caterpillar, segmented, oval, elongated
-- Segments: distinct head/thorax/abdomen or fused
-- Legs: 6 (insect), 0 (larva stage), many (millipede/centipede)
-- Wings: present/absent, number, type (membranous, hardened)
-- Color and markings: solid, striped, spotted, iridescent
-- Life stage: egg, larva/grub, nymph, pupa, adult
-- Distinctive features: horns, cerci, prolegs, spines
-
-DAMAGE PATTERN ANALYSIS (when insect not directly visible):
-
-Surface Damage Indicators:
-- Chewed grass blades: ragged edges, notched, skeletonized
-- Discoloration pattern: yellowing, browning, bleaching
-- Distribution: scattered, clustered, expanding patches, trails
-
-Subsurface Damage Indicators:
-- Turf lifting like carpet (severed roots)
-- Spongy feel when walking
-- Easy pull test (grass detaches from soil)
-- Visible root damage when examined
-
-Secondary Evidence:
-- Frass (insect droppings): color, size, location
-- Silk webbing: tunnels, surface mats
-- Burrows or mounds: size, soil type ejected
-- Animal activity: birds, skunks, raccoons digging
-
-Timing Clues:
-- Sudden overnight damage vs gradual decline
-- Morning/evening pest activity (many are nocturnal)
-- Seasonal patterns
-
-SPECIFIC PEST IDENTIFICATION KEYS:
-
-WHITE GRUBS (Japanese Beetle, June Beetle, European Chafer larvae):
-Physical (if visible):
-- C-shaped, cream/white body with brown head
-- Size: 3/4" to 1.5" depending on species
-- 6 small legs near head, legless posterior
-- Raster pattern (hair arrangement on rear) distinguishes species
-Damage Pattern:
-- Irregular brown patches that LIFT LIKE CARPET
-- Spongy, detached turf (roots severed)
-- Birds (starlings, crows) or mammals (skunks, raccoons) digging
-- Worst damage: late summer through fall
-Diagnostic Test: Pull back turf, dig 2-4 inches - more than 10 grubs/sq ft = treatment threshold
-Grass Susceptibility: All lawn grasses, especially well-irrigated lawns
-
-CHINCH BUGS (Blissus spp.):
-Physical:
-- Adults: 1/8-1/6" black body with white wings folded flat
-- Nymphs: bright red/orange, later black with white band
-- Found at thatch layer, scatter when disturbed
-Damage Pattern:
-- Expanding patches in SUNNY, HOT, DRY areas
-- Yellow halo surrounding dead center
-- Often starts near sidewalks, driveways (heat islands)
-- Damage DOES NOT lift like carpet (roots intact)
-Diagnostic Test: Coffee can method - remove both ends, push into turf edge, fill with water - chinch bugs float up within 10 minutes
-Most Common On: St. Augustine (Southern chinch bug), fine fescues
-Season: Mid-summer through early fall
-
-SOD WEBWORMS (Crambus spp.):
-Physical:
-- Larvae: 3/4-1" tan/gray caterpillar with brown spots
-- Adults: buff/tan moths, snout-nosed, fold wings tight to body
-- Moths fly in zigzag pattern at dusk when disturbed
-Damage Pattern:
-- Small irregular brown patches 1-2" diameter, coalescing
-- Grass chewed off at crown level (not pulled)
-- RAGGED, notched leaf edges
-- Green pellet frass (droppings) visible in thatch
-- Silk-lined tunnels in thatch layer
-Diagnostic Test: Soapy water drench (2 tbsp dish soap per gallon per sq yard) - larvae emerge within minutes
-Season: Multiple generations spring through fall
-
-ARMYWORMS (Spodoptera spp., Mythimna spp.):
-Physical:
-- Larvae: 1-2" caterpillars, green to brown/black
-- Distinctive stripes along body sides
-- Smooth skin (no prominent hairs)
-- Feed in GROUPS, migrate together
-Damage Pattern:
-- RAPID damage overnight (army marches through)
-- Clean-cut grass blades (like mowing)
-- Damage front moves across lawn
-- Most active early morning, evening, cloudy days
-- Heavy infestations visible during day
-Diagnostic Test: Visual inspection at dawn/dusk; soapy water flush
-Season: Late summer/fall; more generations in South
-
-BILLBUGS (Sphenophorus spp.):
-Physical:
-- Adults: 1/4-1/2" brown/black weevils with long snout
-- Larvae: white legless grubs, brown head, found in stems/soil
-Damage Pattern:
-- Small dead patches expand slowly
-- Grass stems easily pull out, severed at base
-- Fine sawdust-like frass (excrement) at crown
-- Dead stems hollow with packed frass
-Diagnostic Test: Tug test - stems break at soil line; examine hollow stems
-Most Common On: Zoysiagrass, Kentucky bluegrass, fine fescues
-
-MOLE CRICKETS (Neoscapteriscus spp.):
-Physical:
-- Adults: 1-1.5" brown, velvety, enlarged front legs for digging
-- Cricket-like but cannot jump well
-- Visible at night, attracted to lights
-Damage Pattern:
-- Raised tunnels visible (like miniature mole runs)
-- Soil feels spongy
-- Brown streaks following tunnel patterns
-- Severe root damage
-Diagnostic Test: Soapy water flush at dusk
-Region: Primarily southeastern US coastal areas
-Season: Spring tunneling damage; adults most active March-May
-
-CUTWORMS:
-Physical:
-- Larvae: 1-2" smooth caterpillars, curl into C when disturbed
-- Various colors: brown, gray, black, striped
-- Nocturnal, hide in soil/thatch during day
-Damage Pattern:
-- Circular bare spots 1-2" diameter
-- Grass cut off at soil level
-- Damage scattered (not expanding patches)
-Diagnostic Test: Nighttime inspection with flashlight
-
-PEST DIFFERENTIAL DIAGNOSIS:
-
-Brown patches with:
-- Turf lifts like carpet → WHITE GRUBS (check by digging)
-- Turf firmly attached, sunny areas → CHINCH BUGS
-- Ragged leaf edges + frass → SOD WEBWORMS
-- Clean-cut leaves, rapid spread → ARMYWORMS
-- Hollow stems at base → BILLBUGS
-- Spongy tunnels → MOLE CRICKETS
-
-If damage pattern is ambiguous, recommend:
-1. Time of day to inspect (dawn/dusk for caterpillars)
-2. Soapy water flush test
-3. Dig test for grubs (2-4" depth)
-4. Coffee can flotation for chinch bugs
-
-===== CONFIDENCE LEVEL REQUIREMENTS =====
-
-HIGH CONFIDENCE requires:
-- 3+ confirming characteristics clearly visible${multipleAngles ? ' OR consistent evidence across multiple photos' : ''}
-- Season and region appropriate for the issue
-- Clear, quality image showing diagnostic features
-
-MEDIUM CONFIDENCE:
-- 1-2 characteristics visible
-- Some ambiguity in features
-- Must list alternate possibilities
-
-LOW CONFIDENCE:
-- Limited visible features
-- Image quality issues
-- Must explain what additional information/angles would help distinguish
-
-For EACH identified issue, you MUST provide:
-- "visual_evidence": specific features you observed in THIS image that led to identification
-- "alternate_possibilities": if not high confidence, what else could it be and what would distinguish them
-
-Your responses must be in valid JSON format with the following structure:
-{
-  "diagnosis": {
-    "identified_issues": [
-      {
-        "type": "disease" | "insect" | "weed" | "nutrient_deficiency" | "environmental",
-        "name": "specific name of the issue",
-        "confidence": "high" | "medium" | "low",
-        "confidence_score": 85,  // numeric percentage 0-100 representing your certainty
-        "visual_evidence": "specific features observed: e.g., 'observed triangular stem cross-section with 3-ranked leaf arrangement confirming yellow nutsedge'",
-        "description": "detailed description of the issue",
-        "symptoms": ["list of visible symptoms actually observed in this image"],
-        "severity": "mild" | "moderate" | "severe",
-        "alternate_possibilities": ["other issues this could be with distinguishing features"]
-      }
-    ],
-    "overall_health": "poor" | "fair" | "good" | "excellent",
-    "affected_area_estimate": "percentage or description",
-    "identification_notes": "any caveats about the analysis, image quality issues, or what additional angles/information would improve identification"
-  },
-  "treatment_plan": {
-    "cultural_practices": [
-      {
-        "action": "specific action to take",
-        "timing": "when to perform",
-        "details": "additional details"
-      }
-    ],
-    "chemical_treatments": [
-      {
-        "product_type": "fungicide" | "insecticide" | "herbicide" | "fertilizer",
-        "active_ingredients": ["list of recommended active ingredients like Azoxystrobin, Propiconazole, Quinclorac, Sulfentrazone, etc."],
-        "application_rate": "specific rate per 1,000 sq ft",
-        "application_frequency": "how often to apply",
-        "timing": "best time to apply",
-        "precautions": ["safety precautions"]
-      }
-    ],
-    "prevention_tips": ["list of preventive measures"]
-  },
-  "forecast": {
-    "risk_level": "low" | "medium" | "high",
-    "potential_outbreaks": [
-      {
-        "issue": "name of potential problem",
-        "likelihood": "percentage or description",
-        "conditions": "environmental conditions that increase risk"
-      }
-    ],
-    "preventive_measures": [
-      {
-        "action": "preventive action",
-        "timing": "when to implement",
-        "reason": "why this helps"
-      }
-    ]
-  }
-}
-
-${plantNetContext}
-Context: Grass type is ${grassType || 'unknown'}, season is ${season || 'unknown'}, location is ${location || 'unknown'}.
-If analyzing warm-season grass in winter - brown/dormant appearance is NORMAL and should NOT be diagnosed as disease.
-Be specific with chemical recommendations including exact active ingredients, application rates (e.g., 0.2-0.4 oz per 1,000 sq ft for herbicides, 2-4 lbs per 1,000 sq ft for granular products), and frequencies (e.g., every 14-28 days).`;
-
-    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${LOVABLE_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'openai/gpt-5-mini',
-        messages: [
-          { 
-            role: 'system', 
-            content: systemPrompt 
-          },
-          { 
-            role: 'user', 
-            content: [
-              {
-                type: 'text',
-                text: multipleAngles 
-                  ? `Please analyze these ${totalImages} lawn photos from different angles and provide a comprehensive diagnosis, treatment plan, and forecast. Use all images together to cross-reference symptoms and strengthen your diagnosis. The lawn is ${grassType || 'unknown grass type'} in ${location || 'an unknown location'} during ${season || 'an unknown season'}. Respond ONLY with the JSON object, no additional text.`
-                  : `Please analyze this lawn image and provide a comprehensive diagnosis, treatment plan, and forecast. The lawn is ${grassType || 'unknown grass type'} in ${location || 'an unknown location'} during ${season || 'an unknown season'}. Respond ONLY with the JSON object, no additional text.`
-              },
-              {
-                type: 'image_url',
-                image_url: {
-                  url: imageBase64.startsWith('data:') ? imageBase64 : `data:image/jpeg;base64,${imageBase64}`
-                }
-              },
-              // Include additional images if provided
-              ...(additionalImages || []).map((img: string) => ({
-                type: 'image_url',
-                image_url: {
-                  url: img.startsWith('data:') ? img : `data:image/jpeg;base64,${img}`
-                }
-              }))
-            ]
-          }
-        ],
-      }),
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('AI gateway error:', response.status, errorText);
-      
-      if (response.status === 429) {
-        return new Response(JSON.stringify({ error: 'Rate limit exceeded. Please try again in a moment.' }), {
-          status: 429,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
-      }
-      if (response.status === 402) {
-        return new Response(JSON.stringify({ error: 'AI credits exhausted. Please add credits to continue.' }), {
-          status: 402,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
-      }
-      
-      throw new Error(`AI gateway error: ${response.status}`);
-    }
-
-    const data = await response.json();
-    console.log('AI response received');
-
-    const content = data.choices?.[0]?.message?.content;
-    if (!content) {
-      throw new Error('No content in AI response');
-    }
-
-    // Parse the JSON from the response
-    let analysisResult;
-    try {
-      // Try to extract JSON from the response (it might be wrapped in markdown code blocks)
-      const jsonMatch = content.match(/```json\s*([\s\S]*?)\s*```/) || content.match(/```\s*([\s\S]*?)\s*```/);
-      const jsonString = jsonMatch ? jsonMatch[1] : content;
-      analysisResult = JSON.parse(jsonString.trim());
-    } catch (parseError) {
-      console.error('Failed to parse JSON response:', parseError);
-      console.log('Raw content:', content);
-      throw new Error('Failed to parse analysis results');
-    }
-
-    // Add Pl@ntNet identification data to the response
-    if (plantNetResult.success && plantNetResult.confidence && plantNetResult.confidence > 0.3) {
-      analysisResult.plantnet_identification = {
-        scientific_name: plantNetResult.scientificName,
-        common_names: plantNetResult.commonNames || [],
+    // ========== STEP 2: Plant.id Health Assessment ==========
+    console.log('\n[STEP 2/3] Plant.id - Health Assessment');
+    const plantIdResult = await assessHealthWithPlantId(imageBase64);
+    
+    // ========== STEP 3: Claude Final Analysis ==========
+    console.log('\n[STEP 3/3] Claude Sonnet 4 - Final Expert Analysis');
+    const analysisResult = await analyzeWithClaude(
+      imageBase64,
+      additionalImages,
+      grassType || 'unknown',
+      season || 'unknown',
+      location || 'unknown',
+      plantNetResult,
+      plantIdResult
+    );
+
+    // Add API chain metadata to response
+    analysisResult.api_chain = {
+      plantnet: {
+        success: plantNetResult.success,
+        species: plantNetResult.scientificName,
         confidence: plantNetResult.confidence,
-        family: plantNetResult.family,
-        genus: plantNetResult.genus,
-        source: 'Pl@ntNet API'
-      };
-      console.log('[PLANTNET] Added identification to response:', analysisResult.plantnet_identification);
-    }
+      },
+      plant_id: {
+        success: plantIdResult.success,
+        healthy: plantIdResult.isHealthy,
+        diseases_found: plantIdResult.diseases?.length || 0,
+      },
+      final_analysis: 'Claude Sonnet 4',
+      chain_version: '1.0.0',
+    };
 
-    console.log('Analysis completed successfully');
+    console.log('\n' + '='.repeat(60));
+    console.log('✅ ANALYSIS COMPLETE');
+    console.log('Issues found:', analysisResult.diagnosis?.identified_issues?.length || 0);
+    console.log('Overall health:', analysisResult.diagnosis?.overall_health);
+    console.log('='.repeat(60));
 
     return new Response(JSON.stringify(analysisResult), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
+
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred';
-    console.error('Error in analyze-lawn function:', error);
+    console.error('❌ Error in analyze-lawn function:', error);
     return new Response(JSON.stringify({ 
       error: errorMessage,
       details: 'Failed to analyze lawn image'
