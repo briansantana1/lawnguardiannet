@@ -64,7 +64,14 @@ export interface PlantIdIssue {
  * Main diagnosis function that orchestrates all API calls
  */
 export async function diagnoseLawn(request: DiagnosisRequest): Promise<LawnAnalysisResult> {
-  console.log('Starting lawn diagnosis...');
+  console.log('[DIAGNOSIS SERVICE] Starting lawn diagnosis...');
+  console.log('[DIAGNOSIS SERVICE] Request params:', {
+    hasImage: !!request.imageBase64,
+    imageLength: request.imageBase64?.length,
+    grassType: request.grassType,
+    season: request.season,
+    location: request.location
+  });
   
   // Use OpenAI directly for lawn-specific diagnosis
   // OpenAI GPT-4o-mini is better for lawn disease/pest/weed identification
@@ -77,38 +84,53 @@ export async function diagnoseLawn(request: DiagnosisRequest): Promise<LawnAnaly
 async function analyzeWithAI(request: DiagnosisRequest): Promise<LawnAnalysisResult> {
   // Generate unique request ID to prevent any caching
   const requestId = `${Date.now()}-${Math.random().toString(36).substring(7)}`;
-  console.log('Calling OpenAI analyze-lawn function...', { requestId });
+  console.log('[DIAGNOSIS SERVICE] Calling analyze-lawn edge function...', { requestId });
+  
+  const requestBody = {
+    imageBase64: request.imageBase64,
+    additionalImages: request.additionalImages,
+    grassType: request.grassType,
+    season: request.season,
+    location: request.location,
+    multipleAngles: (request.additionalImages?.length || 0) > 0,
+    requestId, // Cache-busting unique ID
+  };
+  
+  console.log('[DIAGNOSIS SERVICE] 📤 REQUEST BODY (excluding image):', {
+    ...requestBody,
+    imageBase64: `[${requestBody.imageBase64?.length || 0} chars]`,
+    imagePreview: requestBody.imageBase64?.substring(0, 50) + '...'
+  });
   
   const { data, error } = await supabase.functions.invoke('analyze-lawn', {
-    body: {
-      imageBase64: request.imageBase64,
-      additionalImages: request.additionalImages,
-      grassType: request.grassType,
-      season: request.season,
-      location: request.location,
-      multipleAngles: (request.additionalImages?.length || 0) > 0,
-      requestId, // Cache-busting unique ID
-    },
+    body: requestBody,
   });
 
+  console.log('[DIAGNOSIS SERVICE] 📥 RAW RESPONSE:', { data, error });
+
   if (error) {
-    console.error('OpenAI analysis error:', error);
+    console.error('[DIAGNOSIS SERVICE] ❌ Edge function error:', error);
     throw new Error(`AI analysis failed: ${error.message}`);
   }
 
   // Check for API-level errors in the response
   if (data?.error) {
-    console.error('OpenAI API error:', data.error);
+    console.error('[DIAGNOSIS SERVICE] ❌ API error in response:', data.error);
     throw new Error(data.error);
   }
 
   // Validate the response has the expected structure
   if (!data || !data.diagnosis || !data.treatment_plan) {
-    console.error('Invalid response structure:', data);
+    console.error('[DIAGNOSIS SERVICE] ❌ Invalid response structure:', data);
     throw new Error('Invalid analysis response - missing diagnosis or treatment plan');
   }
 
-  console.log('OpenAI analysis successful');
+  console.log('[DIAGNOSIS SERVICE] ✅ Analysis successful:', {
+    diagnosisIssueCount: data.diagnosis?.identified_issues?.length || 0,
+    overallHealth: data.diagnosis?.overall_health,
+    hasTreatmentPlan: !!data.treatment_plan
+  });
+  
   return data as LawnAnalysisResult;
 }
 

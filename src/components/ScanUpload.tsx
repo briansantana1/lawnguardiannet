@@ -1,5 +1,5 @@
 import { useState, useRef } from "react";
-import { Camera, Upload, X, Loader2, Sparkles, CheckCircle2, AlertCircle, Leaf, Bug, FlaskConical } from "lucide-react";
+import { Camera, Upload, X, Loader2, Sparkles, CheckCircle2, AlertCircle, Leaf, Bug, FlaskConical, ChevronDown, ChevronUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
@@ -10,6 +10,14 @@ import { useAuth } from "@/hooks/useAuth";
 import { diagnoseLawn } from "@/services/lawnDiagnosisService";
 import { resizeImage, dataUrlToBlob, generateImageFilename } from "@/lib/imageUtils";
 
+// Debug log type
+interface DebugLog {
+  timestamp: string;
+  type: 'info' | 'success' | 'error' | 'data';
+  message: string;
+  data?: any;
+}
+
 export function ScanUpload() {
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -18,6 +26,23 @@ export function ScanUpload() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const { user } = useAuth();
+  
+  // Debug state
+  const [debugLogs, setDebugLogs] = useState<DebugLog[]>([]);
+  const [showDebugPanel, setShowDebugPanel] = useState(true);
+  
+  const addDebugLog = (type: DebugLog['type'], message: string, data?: any) => {
+    const log: DebugLog = {
+      timestamp: new Date().toLocaleTimeString(),
+      type,
+      message,
+      data: data ? JSON.stringify(data, null, 2) : undefined
+    };
+    console.log(`[DEBUG ${type.toUpperCase()}] ${message}`, data || '');
+    setDebugLogs(prev => [...prev, log]);
+  };
+  
+  const clearDebugLogs = () => setDebugLogs([]);
 
   const getCurrentSeason = () => {
     const month = new Date().getMonth();
@@ -30,8 +55,11 @@ export function ScanUpload() {
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (files && files.length > 0) {
+      addDebugLog('info', '📸 PHOTO CAPTURED/SELECTED', { fileName: files[0].name, fileSize: files[0].size, fileType: files[0].type });
+      
       // Check if grass type is selected
       if (!grassType) {
+        addDebugLog('error', 'No grass type selected');
         toast.error('Please select your grass type before uploading a photo.');
         e.target.value = '';
         return;
@@ -53,7 +81,7 @@ export function ScanUpload() {
           
           // Log image fingerprint to verify different images
           const imageFingerprint = originalImage.length + '-' + originalImage.substring(originalImage.length - 50);
-          console.log('New image loaded, fingerprint:', imageFingerprint);
+          addDebugLog('info', 'Original image loaded', { fingerprint: imageFingerprint, size: originalImage.length });
           
           // Clear previous results first
           setAnalysisResult(null);
@@ -61,6 +89,7 @@ export function ScanUpload() {
           
           // Resize image for faster upload and analysis
           toast.info('Preparing image...', { duration: 1500 });
+          addDebugLog('info', 'Resizing image...');
           const resizedImage = await resizeImage(originalImage, {
             maxWidth: 1024,
             maxHeight: 1024,
@@ -69,19 +98,21 @@ export function ScanUpload() {
           
           // Log resized image fingerprint
           const resizedFingerprint = resizedImage.length + '-' + resizedImage.substring(resizedImage.length - 50);
-          console.log('Resized image fingerprint:', resizedFingerprint);
+          addDebugLog('success', 'Image resized', { fingerprint: resizedFingerprint, size: resizedImage.length });
           
           setSelectedImage(resizedImage);
           
           // Automatically start analysis when photo is uploaded
           handleAnalyzeImage(resizedImage);
         } catch (error) {
+          addDebugLog('error', 'Image processing error', error);
           console.error('Image processing error:', error);
           toast.error('Failed to process image. Please try again.');
         }
       };
       
       reader.onerror = () => {
+        addDebugLog('error', 'Failed to read image file');
         toast.error('Failed to read image file.');
       };
       
@@ -92,19 +123,30 @@ export function ScanUpload() {
   const handleAnalyzeImage = async (imageData: string) => {
     if (!imageData) return;
 
+    addDebugLog('info', '🔍 STARTING ANALYSIS');
+
     // Check if user is authenticated before calling the edge function
     if (!user) {
+      addDebugLog('error', 'User not authenticated');
       toast.error('Please sign in to analyze your lawn photos.');
       return;
     }
 
     setIsAnalyzing(true);
     toast.info('Analyzing your lawn photo...', { duration: 2000 });
-    console.log('Starting lawn analysis...');
+    
+    // Log the data being sent
+    const requestData = {
+      imageBase64Length: imageData.length,
+      imageBase64Preview: imageData.substring(0, 100) + '...',
+      grassType,
+      season: getCurrentSeason(),
+      location: "United States",
+    };
+    addDebugLog('data', '📤 DATA SENT TO API', requestData);
     
     try {
-      // Try Plant.id powered diagnosis first
-      console.log('Calling diagnoseLawn service...');
+      addDebugLog('info', 'Calling diagnoseLawn service...');
       const result = await diagnoseLawn({
         imageBase64: imageData,
         grassType,
@@ -112,22 +154,36 @@ export function ScanUpload() {
         location: "United States",
       });
 
-      console.log('Diagnosis result:', result);
+      addDebugLog('success', '📥 FULL API RESPONSE', result);
       
       if (!result) {
-        console.error('No result returned from diagnosis');
+        addDebugLog('error', 'No result returned from diagnosis');
         toast.error('Analysis returned no results. Please try again.');
         return;
       }
 
-      // Ensure the user lands at the top of the results view
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+      addDebugLog('success', '✅ ANALYSIS COMPLETE - Setting result and scrolling to top');
+      
+      // Force scroll to top BEFORE setting result
+      window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+      document.documentElement.scrollTop = 0;
+      document.body.scrollTop = 0;
+      
+      addDebugLog('info', 'Scroll position after scrollTo:', { 
+        windowScrollY: window.scrollY,
+        documentScrollTop: document.documentElement.scrollTop,
+        bodyScrollTop: document.body.scrollTop
+      });
 
       setAnalysisResult(result);
       toast.success('Analysis complete!');
     } catch (error: any) {
+      addDebugLog('error', '❌ ANALYSIS FAILED', { 
+        message: error?.message, 
+        stack: error?.stack,
+        fullError: error 
+      });
       console.error('Diagnosis failed:', error);
-      console.error('Error details:', JSON.stringify(error, null, 2));
       
       // Show user-friendly error message
       const errorMessage = error?.message || 'Unknown error';
@@ -140,7 +196,7 @@ export function ScanUpload() {
       }
     } finally {
       setIsAnalyzing(false);
-      console.log('Analysis complete, isAnalyzing set to false');
+      addDebugLog('info', 'isAnalyzing set to false');
     }
   };
 
@@ -240,15 +296,76 @@ export function ScanUpload() {
     }
   };
 
+  // Debug Panel Component
+  const DebugPanel = () => (
+    <div className="fixed bottom-4 right-4 z-50 max-w-md w-full bg-gray-900 text-white rounded-lg shadow-2xl border border-gray-700 max-h-[50vh] flex flex-col">
+      <div 
+        className="flex items-center justify-between p-3 border-b border-gray-700 cursor-pointer"
+        onClick={() => setShowDebugPanel(!showDebugPanel)}
+      >
+        <span className="font-bold text-sm">🐛 Debug Panel ({debugLogs.length} logs)</span>
+        <div className="flex items-center gap-2">
+          <button 
+            onClick={(e) => { e.stopPropagation(); clearDebugLogs(); }}
+            className="text-xs bg-red-600 hover:bg-red-700 px-2 py-1 rounded"
+          >
+            Clear
+          </button>
+          {showDebugPanel ? <ChevronDown className="w-4 h-4" /> : <ChevronUp className="w-4 h-4" />}
+        </div>
+      </div>
+      {showDebugPanel && (
+        <div className="overflow-y-auto flex-1 p-2 space-y-2 text-xs font-mono">
+          {debugLogs.length === 0 ? (
+            <p className="text-gray-400 text-center py-4">No logs yet. Upload a photo to start debugging.</p>
+          ) : (
+            debugLogs.map((log, i) => (
+              <div 
+                key={i} 
+                className={`p-2 rounded ${
+                  log.type === 'error' ? 'bg-red-900/50 border border-red-700' :
+                  log.type === 'success' ? 'bg-green-900/50 border border-green-700' :
+                  log.type === 'data' ? 'bg-blue-900/50 border border-blue-700' :
+                  'bg-gray-800 border border-gray-600'
+                }`}
+              >
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="text-gray-400">{log.timestamp}</span>
+                  <span className={`font-bold ${
+                    log.type === 'error' ? 'text-red-400' :
+                    log.type === 'success' ? 'text-green-400' :
+                    log.type === 'data' ? 'text-blue-400' :
+                    'text-yellow-400'
+                  }`}>
+                    [{log.type.toUpperCase()}]
+                  </span>
+                </div>
+                <p className="text-white">{log.message}</p>
+                {log.data && (
+                  <pre className="mt-1 text-[10px] text-gray-300 overflow-x-auto whitespace-pre-wrap break-all max-h-32 overflow-y-auto bg-black/30 p-1 rounded">
+                    {log.data}
+                  </pre>
+                )}
+              </div>
+            ))
+          )}
+        </div>
+      )}
+    </div>
+  );
+
   if (analysisResult) {
     return (
-      <AnalysisResults
-        result={analysisResult}
-        imageUrl={selectedImage}
-        onSave={handleSavePlan}
-        onNewScan={clearImage}
-        isLoggedIn={!!user}
-      />
+      <>
+        <DebugPanel />
+        <AnalysisResults
+          result={analysisResult}
+          imageUrl={selectedImage}
+          onSave={handleSavePlan}
+          onNewScan={clearImage}
+          isLoggedIn={!!user}
+        />
+      </>
     );
   }
 
@@ -262,6 +379,8 @@ export function ScanUpload() {
   ];
 
   return (
+    <>
+    <DebugPanel />
     <section id="scan" className="py-20 bg-lawn-50">
       <div className="container mx-auto px-4">
         <div className="max-w-2xl mx-auto">
@@ -490,5 +609,6 @@ export function ScanUpload() {
         </div>
       </div>
     </section>
+    </>
   );
 }
