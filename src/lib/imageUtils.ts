@@ -115,3 +115,148 @@ export function formatBytes(bytes: number): string {
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
+
+export interface ImageQualityIssue {
+  type: 'blur' | 'dark' | 'too_close' | 'too_far' | 'low_resolution';
+  message: string;
+}
+
+export interface ImageQualityResult {
+  isGoodQuality: boolean;
+  issues: ImageQualityIssue[];
+  metrics: {
+    brightness: number;
+    variance: number;
+    greenRatio: number;
+    width: number;
+    height: number;
+    fileSize: number;
+  };
+}
+
+/**
+ * Analyze image quality for lawn diagnosis
+ * Returns quality assessment with specific issues
+ */
+export async function analyzeImageQuality(imageDataUrl: string): Promise<ImageQualityResult> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      
+      if (!ctx) {
+        reject(new Error('Could not get canvas context'));
+        return;
+      }
+      
+      // Use a smaller sample for faster analysis
+      const sampleWidth = Math.min(img.width, 400);
+      const sampleHeight = Math.min(img.height, 400);
+      canvas.width = sampleWidth;
+      canvas.height = sampleHeight;
+      
+      ctx.drawImage(img, 0, 0, sampleWidth, sampleHeight);
+      
+      const imageData = ctx.getImageData(0, 0, sampleWidth, sampleHeight);
+      const pixels = imageData.data;
+      
+      let totalBrightness = 0;
+      let brightnessValues: number[] = [];
+      let greenPixels = 0;
+      let totalPixels = pixels.length / 4;
+      
+      // Analyze each pixel
+      for (let i = 0; i < pixels.length; i += 4) {
+        const r = pixels[i];
+        const g = pixels[i + 1];
+        const b = pixels[i + 2];
+        
+        // Calculate brightness (perceived luminance)
+        const brightness = (0.299 * r + 0.587 * g + 0.114 * b);
+        totalBrightness += brightness;
+        brightnessValues.push(brightness);
+        
+        // Check if pixel is predominantly green (lawn detection)
+        if (g > r * 1.1 && g > b * 1.1 && g > 50) {
+          greenPixels++;
+        }
+      }
+      
+      const avgBrightness = totalBrightness / totalPixels;
+      const greenRatio = greenPixels / totalPixels;
+      
+      // Calculate variance (indicator of detail/blur)
+      let variance = 0;
+      for (const brightness of brightnessValues) {
+        variance += Math.pow(brightness - avgBrightness, 2);
+      }
+      variance = variance / totalPixels;
+      
+      const fileSize = getBase64Size(imageDataUrl);
+      
+      const issues: ImageQualityIssue[] = [];
+      
+      // Check for low resolution
+      if (img.width < 400 || img.height < 400) {
+        issues.push({
+          type: 'low_resolution',
+          message: 'Image resolution is very low'
+        });
+      }
+      
+      // Check for too dark (average brightness below threshold)
+      if (avgBrightness < 50) {
+        issues.push({
+          type: 'dark',
+          message: 'Image appears too dark'
+        });
+      }
+      
+      // Check for potential blur (low variance indicates lack of detail)
+      // Small file size combined with low variance suggests blur
+      if (variance < 800 && fileSize < 50000) {
+        issues.push({
+          type: 'blur',
+          message: 'Image may be blurry or out of focus'
+        });
+      }
+      
+      // Check if too close (mostly green, high uniformity)
+      if (greenRatio > 0.85 && variance < 1500) {
+        issues.push({
+          type: 'too_close',
+          message: 'Image may be too close - no context visible'
+        });
+      }
+      
+      // Check if too far (very low green ratio, high variance from mixed content)
+      if (greenRatio < 0.1 && variance > 3000) {
+        issues.push({
+          type: 'too_far',
+          message: 'Image may be too far - cannot see lawn detail'
+        });
+      }
+      
+      resolve({
+        isGoodQuality: issues.length === 0,
+        issues,
+        metrics: {
+          brightness: Math.round(avgBrightness),
+          variance: Math.round(variance),
+          greenRatio: Math.round(greenRatio * 100) / 100,
+          width: img.width,
+          height: img.height,
+          fileSize
+        }
+      });
+    };
+    
+    img.onerror = () => {
+      reject(new Error('Failed to load image for quality analysis'));
+    };
+    
+    img.src = imageDataUrl;
+  });
+}

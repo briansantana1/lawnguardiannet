@@ -1,19 +1,20 @@
 import { useState, useRef } from "react";
-import { Camera, Upload, X, Loader2, Sparkles, CheckCircle2, AlertCircle, Leaf, Bug, FlaskConical, ChevronDown, ChevronUp } from "lucide-react";
+import { Camera, Upload, X, Loader2, Sparkles, CheckCircle2, AlertCircle, Leaf, Bug, FlaskConical, ChevronDown, ChevronUp, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { LawnAnalysisResult } from "@/types/lawn-analysis";
 import { AnalysisResults } from "@/components/AnalysisResults";
 import { useAuth } from "@/hooks/useAuth";
 import { diagnoseLawn } from "@/services/lawnDiagnosisService";
-import { resizeImage, dataUrlToBlob, generateImageFilename } from "@/lib/imageUtils";
+import { resizeImage, dataUrlToBlob, generateImageFilename, analyzeImageQuality, ImageQualityResult } from "@/lib/imageUtils";
 
 // Debug log type
 interface DebugLog {
   timestamp: string;
-  type: 'info' | 'success' | 'error' | 'data';
+  type: 'info' | 'success' | 'error' | 'data' | 'warning';
   message: string;
   data?: any;
 }
@@ -26,6 +27,11 @@ export function ScanUpload() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const { user } = useAuth();
+  
+  // Image quality warning state
+  const [qualityWarning, setQualityWarning] = useState<ImageQualityResult | null>(null);
+  const [pendingImage, setPendingImage] = useState<string | null>(null);
+  const [isCheckingQuality, setIsCheckingQuality] = useState(false);
   
   // Debug state
   const [debugLogs, setDebugLogs] = useState<DebugLog[]>([]);
@@ -100,6 +106,28 @@ export function ScanUpload() {
           const resizedFingerprint = resizedImage.length + '-' + resizedImage.substring(resizedImage.length - 50);
           addDebugLog('success', 'Image resized', { fingerprint: resizedFingerprint, size: resizedImage.length });
           
+          // Check image quality before proceeding
+          setIsCheckingQuality(true);
+          addDebugLog('info', '🔍 Checking image quality...');
+          
+          try {
+            const qualityResult = await analyzeImageQuality(resizedImage);
+            addDebugLog('data', '📊 Quality analysis result', qualityResult);
+            
+            if (!qualityResult.isGoodQuality) {
+              // Show warning dialog and store pending image
+              addDebugLog('warning', '⚠️ Image quality issues detected', qualityResult.issues);
+              setPendingImage(resizedImage);
+              setQualityWarning(qualityResult);
+              setIsCheckingQuality(false);
+              return;
+            }
+          } catch (qualityError) {
+            addDebugLog('error', 'Quality check failed, proceeding anyway', qualityError);
+            // If quality check fails, proceed anyway
+          }
+          
+          setIsCheckingQuality(false);
           setSelectedImage(resizedImage);
           
           // Automatically start analysis when photo is uploaded
@@ -108,6 +136,7 @@ export function ScanUpload() {
           addDebugLog('error', 'Image processing error', error);
           console.error('Image processing error:', error);
           toast.error('Failed to process image. Please try again.');
+          setIsCheckingQuality(false);
         }
       };
       
@@ -118,6 +147,29 @@ export function ScanUpload() {
       
       reader.readAsDataURL(file);
     }
+  };
+
+  const handleProceedWithWarning = () => {
+    if (pendingImage) {
+      addDebugLog('info', '⚠️ User proceeding despite quality warning');
+      setSelectedImage(pendingImage);
+      setQualityWarning(null);
+      setPendingImage(null);
+      handleAnalyzeImage(pendingImage);
+    }
+  };
+
+  const handleRetakePhoto = () => {
+    addDebugLog('info', '📷 User choosing to retake photo');
+    setQualityWarning(null);
+    setPendingImage(null);
+    // Open camera input
+    cameraInputRef.current?.click();
+  };
+
+  const handleDismissWarning = () => {
+    setQualityWarning(null);
+    setPendingImage(null);
   };
 
   const handleAnalyzeImage = async (imageData: string) => {
@@ -338,6 +390,7 @@ export function ScanUpload() {
                   log.type === 'error' ? 'bg-red-900/50 border border-red-700' :
                   log.type === 'success' ? 'bg-green-900/50 border border-green-700' :
                   log.type === 'data' ? 'bg-blue-900/50 border border-blue-700' :
+                  log.type === 'warning' ? 'bg-amber-900/50 border border-amber-700' :
                   'bg-gray-800 border border-gray-600'
                 }`}
               >
@@ -347,6 +400,7 @@ export function ScanUpload() {
                     log.type === 'error' ? 'text-red-400' :
                     log.type === 'success' ? 'text-green-400' :
                     log.type === 'data' ? 'text-blue-400' :
+                    log.type === 'warning' ? 'text-amber-400' :
                     'text-yellow-400'
                   }`}>
                     [{log.type.toUpperCase()}]
@@ -390,9 +444,76 @@ export function ScanUpload() {
     { icon: AlertCircle, text: "Don't use flash - it washes out colors", good: false },
   ];
 
+  // Quality Warning Dialog Component
+  const QualityWarningDialog = () => (
+    <Dialog open={!!qualityWarning} onOpenChange={(open) => !open && handleDismissWarning()}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2 text-amber-600">
+            <AlertTriangle className="w-5 h-5" />
+            Photo Quality Warning
+          </DialogTitle>
+          <DialogDescription className="text-left">
+            This photo might not give accurate results. We detected the following issues:
+          </DialogDescription>
+        </DialogHeader>
+        
+        <div className="space-y-3 py-2">
+          {qualityWarning?.issues.map((issue, i) => (
+            <div key={i} className="flex items-start gap-2 p-3 rounded-lg bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-800">
+              <AlertCircle className="w-4 h-4 text-amber-500 mt-0.5 flex-shrink-0" />
+              <span className="text-sm text-amber-800 dark:text-amber-200">{issue.message}</span>
+            </div>
+          ))}
+          
+          <div className="mt-4 p-4 rounded-lg bg-lawn-50 dark:bg-lawn-950 border border-lawn-200 dark:border-lawn-800">
+            <p className="text-sm font-medium text-foreground mb-2">For better results, try:</p>
+            <ul className="text-sm text-muted-foreground space-y-1.5">
+              <li className="flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 text-lawn-500" />
+                Better lighting (natural daylight works best)
+              </li>
+              <li className="flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 text-lawn-500" />
+                1-2 feet away from the problem area
+              </li>
+              <li className="flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 text-lawn-500" />
+                Clear focus on the weed/problem area
+              </li>
+            </ul>
+          </div>
+          
+          {/* Preview of the pending image */}
+          {pendingImage && (
+            <div className="mt-3">
+              <p className="text-xs text-muted-foreground mb-2">Your photo:</p>
+              <img 
+                src={pendingImage} 
+                alt="Preview" 
+                className="w-full h-32 object-cover rounded-lg border border-border"
+              />
+            </div>
+          )}
+        </div>
+        
+        <DialogFooter className="flex-col sm:flex-row gap-2">
+          <Button variant="secondary" onClick={handleRetakePhoto} className="flex-1">
+            <Camera className="w-4 h-4 mr-2" />
+            Retake Photo
+          </Button>
+          <Button variant="default" onClick={handleProceedWithWarning} className="flex-1">
+            Proceed Anyway
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+
   return (
     <>
     <DebugPanel />
+    <QualityWarningDialog />
     <section id="scan" className="py-20 bg-lawn-50">
       <div className="container mx-auto px-4">
         <div className="max-w-2xl mx-auto">
