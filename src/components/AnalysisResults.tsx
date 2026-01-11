@@ -97,7 +97,7 @@ const IssueCard = ({ issue }: { issue: IdentifiedIssue }) => {
             <div className="flex items-center gap-2 flex-wrap">
               <h4 className="font-semibold text-foreground">{issue.name}</h4>
               <Badge variant="secondary" className={getConfidenceColor(issue.confidence)}>
-                {issue.confidence} confidence
+                {issue.confidence} confidence{issue.confidence_score ? ` ${issue.confidence_score}%` : ''}
               </Badge>
             </div>
             <p className="text-sm text-muted-foreground capitalize">{issue.type.replace('_', ' ')}</p>
