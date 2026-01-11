@@ -27,14 +27,14 @@ const planDetails: Record<string, {
   period: string; 
   features: string[]; 
   badge?: string;
-  type: 'monthly' | 'annual';
+  type: 'weekly' | 'annual';
 }> = {
-  monthly: {
-    name: "Pro Monthly",
-    price: "$9.99",
-    priceValue: 9.99,
-    period: "/month",
-    type: 'monthly',
+  weekly: {
+    name: "Pro Weekly",
+    price: "$5.99",
+    priceValue: 5.99,
+    period: "/week",
+    type: 'weekly',
     features: [
       "Unlimited photo scans",
       "AI-powered lawn diagnosis",
@@ -55,7 +55,7 @@ const planDetails: Record<string, {
     period: "/year",
     type: 'annual',
     features: [
-      "Everything in Pro Monthly",
+      "Everything in Pro Weekly",
       "Unlimited photo scans",
       "AI-powered lawn diagnosis",
       "Detailed diagnosis reports",
@@ -66,15 +66,15 @@ const planDetails: Record<string, {
       "Ad-free experience",
       "Priority support",
     ],
-    badge: "SAVE 33%",
+    badge: "SAVE 74%",
   },
 };
 
 export function Purchase() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const planId = searchParams.get("plan") || "monthly";
-  const plan = planDetails[planId] || planDetails.monthly;
+  const planId = searchParams.get("plan") || "weekly";
+  const plan = planDetails[planId] || planDetails.weekly;
   
   const { user } = useAuth();
   const { toast } = useToast();
@@ -100,7 +100,7 @@ export function Purchase() {
   const platform = Capacitor.getPlatform();
 
   // Get the appropriate package based on selected plan
-  const selectedPackage = plan.type === 'monthly' ? monthlyPackage : annualPackage;
+  const selectedPackage = plan.type === 'weekly' ? monthlyPackage : annualPackage;
   
   // Get real price from RevenueCat if available
   const displayPrice = selectedPackage?.product?.priceString || plan.price;
@@ -119,8 +119,8 @@ export function Purchase() {
     setIsProcessing(true);
     
     try {
-      const result = plan.type === 'monthly' 
-        ? await purchaseMonthly()
+      const result = plan.type === 'weekly' 
+        ? await purchaseMonthly()  // purchaseMonthly will be updated to purchaseWeekly when RevenueCat is configured
         : await purchaseAnnual();
 
       if (result.success) {
@@ -277,13 +277,13 @@ export function Purchase() {
 
         {/* Plan Summary */}
         <Card variant="elevated" className={`mb-6 relative overflow-hidden ${
-          planId === 'monthly' 
+          planId === 'weekly' 
             ? 'ring-2 ring-lawn-500' 
             : 'ring-2 ring-amber-400'
         }`}>
           {plan.badge && (
             <div className={`absolute top-0 right-0 text-white text-xs font-bold px-4 py-1.5 rounded-bl-xl ${
-              planId === 'monthly' 
+              planId === 'weekly' 
                 ? 'bg-gradient-to-r from-lawn-500 to-lawn-600' 
                 : 'bg-gradient-to-r from-amber-400 to-amber-500'
             }`}>
@@ -293,7 +293,7 @@ export function Purchase() {
           <CardHeader className="pb-3">
             <div className="flex items-center gap-3">
               <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
-                planId === 'monthly' 
+                planId === 'weekly' 
                   ? 'bg-gradient-to-br from-lawn-500 to-lawn-600' 
                   : 'bg-gradient-to-br from-amber-400 to-amber-500'
               }`}>
@@ -393,7 +393,7 @@ export function Purchase() {
                     <Button 
                       size="lg" 
                       className={`w-full font-semibold ${
-                        planId === 'monthly'
+                        planId === 'weekly'
                           ? 'bg-gradient-to-r from-lawn-500 to-lawn-600 hover:from-lawn-600 hover:to-lawn-700 text-white shadow-md'
                           : 'bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-white shadow-md'
                       }`}

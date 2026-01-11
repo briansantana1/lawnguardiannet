@@ -103,8 +103,8 @@ export function TermsOfUse() {
               We offer the following subscription options:
             </p>
             <ul className="list-disc pl-6 text-muted-foreground space-y-2 mt-2">
-              <li><strong>Pro Monthly:</strong> $9.99 per month</li>
-              <li><strong>Pro Annual:</strong> $79.99 per year</li>
+              <li><strong>Pro Weekly:</strong> $5.99 per week</li>
+              <li><strong>Pro Annual:</strong> $79.99 per year (best value - save 74%)</li>
             </ul>
             <p className="text-muted-foreground leading-relaxed mt-3">
               Prices are in US dollars and may vary by region. Prices are subject to change with notice.

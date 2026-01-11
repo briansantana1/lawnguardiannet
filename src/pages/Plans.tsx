@@ -30,9 +30,9 @@ const plans = [
     savings: null,
   },
   {
-    name: "Pro Monthly",
-    price: "$9.99",
-    period: "/month",
+    name: "Pro Weekly",
+    price: "$5.99",
+    period: "/week",
     icon: Shield,
     color: "bg-gradient-to-br from-lawn-500 to-lawn-600",
     iconColor: "text-white",
@@ -50,7 +50,7 @@ const plans = [
       { text: "Ad-free experience", included: true },
       { text: "Priority support", included: true },
     ],
-    buttonText: "Start Pro Monthly",
+    buttonText: "Start Pro Weekly",
     buttonVariant: "default" as const,
     popular: true,
     savings: null,
@@ -64,7 +64,7 @@ const plans = [
     iconColor: "text-white",
     borderColor: "ring-2 ring-amber-400",
     features: [
-      { text: "Everything in Pro Monthly", included: true },
+      { text: "Everything in Pro Weekly", included: true },
       { text: "Unlimited photo scans", included: true },
       { text: "AI-powered identification", included: true },
       { text: "High-accuracy AI diagnosis", included: true },
@@ -80,7 +80,7 @@ const plans = [
     buttonText: "Start Pro Annual",
     buttonVariant: "default" as const,
     popular: false,
-    savings: "Save 33% ($40/year)",
+    savings: "Save 74% ($230+/year)",
   },
 ];
 
@@ -205,8 +205,8 @@ export function Plans() {
                   }`}
                   disabled={plan.name === "Free"}
                   onClick={() => {
-                    if (plan.name === "Pro Monthly") {
-                      navigate("/purchase?plan=monthly");
+                    if (plan.name === "Pro Weekly") {
+                      navigate("/purchase?plan=weekly");
                     } else if (plan.name === "Pro Annual") {
                       navigate("/purchase?plan=annual");
                     }
