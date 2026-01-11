@@ -128,7 +128,7 @@ export function Purchase() {
           title: "Purchase Successful! 🎉",
           description: `Welcome to ${plan.name}! Enjoy unlimited AI-powered lawn diagnostics.`,
         });
-        navigate('/app');
+        navigate('/');
       } else if (result.error === 'Purchase cancelled') {
         // User cancelled - no toast needed
       } else if (result.error) {
@@ -162,7 +162,7 @@ export function Purchase() {
           title: "Purchases Restored! 🎉",
           description: "Your subscription has been restored successfully.",
         });
-        navigate('/app');
+        navigate('/');
       } else if (result.error) {
         toast({
           title: "No Purchases Found",
@@ -206,7 +206,7 @@ export function Purchase() {
                   <> until {subscriptionDetails.expirationDate}</>
                 )}
               </p>
-              <Button onClick={() => navigate('/app')}>
+              <Button onClick={() => navigate('/')}>
                 Continue to App
               </Button>
             </CardContent>

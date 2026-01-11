@@ -91,7 +91,7 @@ export function RestoreMembership() {
                 </p>
               )}
               <div className="space-y-3">
-                <Button onClick={() => navigate('/app')}>
+                <Button onClick={() => navigate('/')}>
                   Continue to App
                 </Button>
                 {isNative && (

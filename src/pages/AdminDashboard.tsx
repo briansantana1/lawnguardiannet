@@ -257,7 +257,7 @@ const AdminDashboard = () => {
             <Button variant="outline" onClick={() => navigate("/")}>
               View Landing Page
             </Button>
-            <Button variant="outline" onClick={() => navigate("/app")}>
+            <Button variant="outline" onClick={() => navigate("/")}>
               Open App
             </Button>
           </div>
