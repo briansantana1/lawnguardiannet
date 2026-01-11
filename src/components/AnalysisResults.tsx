@@ -326,7 +326,11 @@ export function AnalysisResults({ result, imageUrl, onSave, onNewScan, isLoggedI
                         )}
                       </p>
                       <div className="flex flex-wrap gap-2 text-sm">
-                        <Badge className="bg-violet-100 text-violet-700 border-violet-200">
+                        <Badge className={`${
+                          (result.plantnet_identification.confidence || 0) < 0.5 
+                            ? 'bg-amber-100 text-amber-700 border-amber-200' 
+                            : 'bg-violet-100 text-violet-700 border-violet-200'
+                        }`}>
                           Confidence: {((result.plantnet_identification.confidence || 0) * 100).toFixed(1)}%
                         </Badge>
                         {result.plantnet_identification.family && (
@@ -343,6 +347,24 @@ export function AnalysisResults({ result, imageUrl, onSave, onNewScan, isLoggedI
                     </div>
                   </div>
                 </div>
+                
+                {/* Low confidence warning */}
+                {(result.plantnet_identification.confidence || 0) < 0.5 && (
+                  <div className="mt-3 p-3 rounded-lg bg-amber-50 border border-amber-200">
+                    <div className="flex items-start gap-2">
+                      <AlertTriangle className="w-4 h-4 text-amber-600 mt-0.5 flex-shrink-0" />
+                      <div>
+                        <p className="text-sm font-medium text-amber-800">Low confidence result</p>
+                        <p className="text-xs text-amber-700 mt-1">For better accuracy, try:</p>
+                        <ul className="text-xs text-amber-700 mt-1 ml-3 list-disc space-y-0.5">
+                          <li>Getting closer to the weed</li>
+                          <li>Taking photo in better lighting</li>
+                          <li>Including some surrounding grass for context</li>
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
           )}
