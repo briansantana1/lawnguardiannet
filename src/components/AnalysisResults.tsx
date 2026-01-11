@@ -19,7 +19,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { LawnAnalysisResult, IdentifiedIssue, ChemicalTreatment } from "@/types/lawn-analysis";
+import { LawnAnalysisResult, IdentifiedIssue, ChemicalTreatment, PlantNetIdentification } from "@/types/lawn-analysis";
 import { useState, useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
@@ -299,6 +299,53 @@ export function AnalysisResults({ result, imageUrl, onSave, onNewScan, isLoggedI
               </Button>
             </div>
           </div>
+
+          {/* Pl@ntNet Identification - Two-tier display */}
+          {result.plantnet_identification && (
+            <Card className="mb-4 border-violet-200 bg-gradient-to-r from-violet-50 to-purple-50">
+              <CardContent className="p-4">
+                <div className="flex items-start gap-3">
+                  <div className="p-2 rounded-lg bg-violet-100">
+                    <Leaf className="w-5 h-5 text-violet-600" />
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-xs font-semibold text-violet-600 uppercase tracking-wide">
+                        🌿 Pl@ntNet Identification
+                      </span>
+                    </div>
+                    <div className="space-y-1">
+                      <p className="font-semibold text-foreground">
+                        {result.plantnet_identification.common_names?.length > 0 
+                          ? result.plantnet_identification.common_names[0]
+                          : result.plantnet_identification.scientific_name}
+                        {result.plantnet_identification.scientific_name && (
+                          <span className="text-muted-foreground font-normal italic ml-2">
+                            ({result.plantnet_identification.scientific_name})
+                          </span>
+                        )}
+                      </p>
+                      <div className="flex flex-wrap gap-2 text-sm">
+                        <Badge className="bg-violet-100 text-violet-700 border-violet-200">
+                          Confidence: {((result.plantnet_identification.confidence || 0) * 100).toFixed(1)}%
+                        </Badge>
+                        {result.plantnet_identification.family && (
+                          <Badge variant="outline" className="border-violet-200 text-violet-600">
+                            Family: {result.plantnet_identification.family}
+                          </Badge>
+                        )}
+                      </div>
+                      {result.plantnet_identification.common_names?.length > 1 && (
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Also known as: {result.plantnet_identification.common_names.slice(1, 4).join(', ')}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Identification Notes */}
           {result.diagnosis.identification_notes && (

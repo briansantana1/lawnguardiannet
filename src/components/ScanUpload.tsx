@@ -156,6 +156,18 @@ export function ScanUpload() {
 
       addDebugLog('success', '📥 FULL API RESPONSE', result);
       
+      // Log Pl@ntNet identification specifically
+      if (result.plantnet_identification) {
+        addDebugLog('success', '🌿 PL@NTNET IDENTIFICATION', {
+          scientificName: result.plantnet_identification.scientific_name,
+          commonNames: result.plantnet_identification.common_names,
+          confidence: ((result.plantnet_identification.confidence || 0) * 100).toFixed(1) + '%',
+          family: result.plantnet_identification.family
+        });
+      } else {
+        addDebugLog('info', '🌿 PL@NTNET: No identification returned (may have failed or low confidence)');
+      }
+      
       if (!result) {
         addDebugLog('error', 'No result returned from diagnosis');
         toast.error('Analysis returned no results. Please try again.');

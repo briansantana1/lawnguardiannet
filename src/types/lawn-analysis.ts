@@ -55,10 +55,20 @@ export interface Forecast {
   preventive_measures: PreventiveMeasure[];
 }
 
+export interface PlantNetIdentification {
+  scientific_name?: string;
+  common_names: string[];
+  confidence: number;
+  family?: string;
+  genus?: string;
+  source: string;
+}
+
 export interface LawnAnalysisResult {
   diagnosis: Diagnosis;
   treatment_plan: TreatmentPlan;
   forecast: Forecast;
+  plantnet_identification?: PlantNetIdentification;
 }
 
 export interface SavedTreatmentPlan {
