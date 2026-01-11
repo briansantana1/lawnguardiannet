@@ -2,11 +2,91 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
+const PLANTNET_API_KEY = Deno.env.get('PLANTNET_API_KEY');
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
+
+// Pl@ntNet API integration
+interface PlantNetResult {
+  success: boolean;
+  scientificName?: string;
+  commonNames?: string[];
+  confidence?: number;
+  family?: string;
+  genus?: string;
+  isWeed?: boolean;
+  rawData?: unknown;
+  error?: string;
+}
+
+async function identifyWithPlantNet(imageBase64: string): Promise<PlantNetResult> {
+  if (!PLANTNET_API_KEY) {
+    console.log('[PLANTNET] API key not configured, skipping');
+    return { success: false, error: 'Pl@ntNet API key not configured' };
+  }
+
+  try {
+    console.log('[PLANTNET] Starting identification...');
+    
+    // Convert base64 to blob for form data
+    const base64Data = imageBase64.replace(/^data:image\/\w+;base64,/, '');
+    const binaryData = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0));
+    const blob = new Blob([binaryData], { type: 'image/jpeg' });
+    
+    const formData = new FormData();
+    formData.append('images', blob, 'lawn-image.jpg');
+    formData.append('organs', 'leaf'); // For lawn weeds, use 'leaf' organ type
+    
+    const response = await fetch(
+      `https://my-api.plantnet.org/v2/identify/all?api-key=${PLANTNET_API_KEY}&include-related-images=false`,
+      {
+        method: 'POST',
+        body: formData,
+      }
+    );
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('[PLANTNET] API error:', response.status, errorText);
+      
+      if (response.status === 404) {
+        return { success: false, error: 'No plant identified in image' };
+      }
+      
+      return { success: false, error: `Pl@ntNet API error: ${response.status}` };
+    }
+    
+    const data = await response.json();
+    console.log('[PLANTNET] Response received:', JSON.stringify(data).substring(0, 500));
+    
+    if (data.results && data.results.length > 0) {
+      const topResult = data.results[0];
+      const result: PlantNetResult = {
+        success: true,
+        scientificName: topResult.species?.scientificName || topResult.species?.scientificNameWithoutAuthor,
+        commonNames: topResult.species?.commonNames || [],
+        confidence: topResult.score,
+        family: topResult.species?.family?.scientificName,
+        genus: topResult.species?.genus?.scientificName,
+        isWeed: true, // Will be verified by Claude
+        rawData: data,
+      };
+      
+      console.log('[PLANTNET] Identified:', result.scientificName, 'Confidence:', (result.confidence! * 100).toFixed(1) + '%');
+      return result;
+    } else {
+      console.log('[PLANTNET] No results found');
+      return { success: false, error: 'No plant identified in image' };
+    }
+    
+  } catch (error) {
+    console.error('[PLANTNET] Error:', error);
+    return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+  }
+}
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -61,6 +141,40 @@ serve(async (req) => {
     console.log('Grass type:', grassType || 'Unknown');
     console.log('Season:', season || 'Unknown');
     console.log('Location:', location || 'Unknown');
+
+    // Step 1: Call Pl@ntNet API first for plant/weed identification
+    let plantNetResult: PlantNetResult = { success: false };
+    let plantNetContext = '';
+    
+    try {
+      plantNetResult = await identifyWithPlantNet(imageBase64);
+      
+      if (plantNetResult.success && plantNetResult.confidence && plantNetResult.confidence > 0.3) {
+        console.log('[PLANTNET] Using Pl@ntNet results for enhanced analysis');
+        
+        plantNetContext = `
+===== PL@NTNET API PRE-IDENTIFICATION =====
+A plant identification API (Pl@ntNet) analyzed this image and identified it as:
+- Scientific Name: ${plantNetResult.scientificName || 'Unknown'}
+- Common Names: ${plantNetResult.commonNames?.join(', ') || 'Unknown'}
+- Confidence: ${((plantNetResult.confidence || 0) * 100).toFixed(1)}%
+- Family: ${plantNetResult.family || 'Unknown'}
+- Genus: ${plantNetResult.genus || 'Unknown'}
+
+Your tasks regarding this pre-identification:
+1. Verify if this is a common lawn weed or a grass species
+2. If it's a weed, incorporate this identification into your diagnosis with appropriate confidence
+3. If it's NOT a weed (like desirable grass, garden plants, or misidentified), note this in your analysis
+4. Cross-reference with visual symptoms you observe
+5. If Pl@ntNet confidence is below 50%, use your own analysis as primary and Pl@ntNet as supporting data
+
+`;
+      } else if (plantNetResult.error) {
+        console.log('[PLANTNET] Skipping - Error:', plantNetResult.error);
+      }
+    } catch (plantNetError) {
+      console.error('[PLANTNET] Failed, falling back to AI-only analysis:', plantNetError);
+    }
 
     const systemPrompt = `You are an expert lawn care diagnostician and agronomist with 20+ years of experience specializing in turfgrass diseases, insects, and weeds. Your identifications guide treatment decisions for paid subscribers and MUST be highly accurate.
 
@@ -451,6 +565,7 @@ Your responses must be in valid JSON format with the following structure:
   }
 }
 
+${plantNetContext}
 Context: Grass type is ${grassType || 'unknown'}, season is ${season || 'unknown'}, location is ${location || 'unknown'}.
 If analyzing warm-season grass in winter - brown/dormant appearance is NORMAL and should NOT be diagnosed as disease.
 Be specific with chemical recommendations including exact active ingredients, application rates (e.g., 0.2-0.4 oz per 1,000 sq ft for herbicides, 2-4 lbs per 1,000 sq ft for granular products), and frequencies (e.g., every 14-28 days).`;
@@ -535,6 +650,19 @@ Be specific with chemical recommendations including exact active ingredients, ap
       console.error('Failed to parse JSON response:', parseError);
       console.log('Raw content:', content);
       throw new Error('Failed to parse analysis results');
+    }
+
+    // Add Pl@ntNet identification data to the response
+    if (plantNetResult.success && plantNetResult.confidence && plantNetResult.confidence > 0.3) {
+      analysisResult.plantnet_identification = {
+        scientific_name: plantNetResult.scientificName,
+        common_names: plantNetResult.commonNames || [],
+        confidence: plantNetResult.confidence,
+        family: plantNetResult.family,
+        genus: plantNetResult.genus,
+        source: 'Pl@ntNet API'
+      };
+      console.log('[PLANTNET] Added identification to response:', analysisResult.plantnet_identification);
     }
 
     console.log('Analysis completed successfully');
