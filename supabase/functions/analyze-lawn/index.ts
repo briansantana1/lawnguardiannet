@@ -328,6 +328,64 @@ LEAF SPOT/MELTING OUT (Bipolaris/Drechslera):
 - Lesions may girdle entire leaf blade
 - Can progress to crown rot ("melting out")
 - Conditions: cool wet spring, transitioning to hot summer
+- Most common on: Kentucky bluegrass, tall fescue, perennial ryegrass
+
+FAIRY RING (Various Basidiomycete fungi):
+- Circular or arc-shaped rings/bands in lawn, 3-50+ feet diameter
+- THREE TYPES:
+  * Type 1: Dead grass band with mushrooms (most damaging - hydrophobic soil layer)
+  * Type 2: Dark green stimulated grass ring (nitrogen release from fungal breakdown)
+  * Type 3: Mushrooms/puffballs only, no grass symptoms
+- Mushrooms or puffballs may appear after rain (not always present)
+- Rings expand outward 6-24 inches per year
+- Interior grass may appear normal or stressed
+- Hydrophobic (water-repellent) soil in Type 1 - water beads up, won't penetrate
+- Conditions: any temps when soil moist, organic matter in soil (buried wood, roots)
+- DIAGNOSTIC: ring pattern is unmistakable, dig to find white fungal mycelium in soil
+
+RED THREAD (Laetisaria fuciformis):
+- Irregular patches 4 inches to 2 feet, pinkish-red cast
+- DIAGNOSTIC: red/pink threadlike strands (sclerotia) extending from leaf tips
+- Pink cottony flocks of mycelium visible in humid conditions
+- Grass blades tan/bleached, often with pink tips
+- Grass rarely killed, recovers with fertilization
+- Conditions: cool (60-75°F), humid, wet weather, low nitrogen
+- Most common on: perennial ryegrass, fine fescues, Kentucky bluegrass
+- Often confused with: pink patch (similar but different pathogen)
+
+SUMMER PATCH (Magnaporthe poae):
+- Circular to crescent/frog-eye patches 6 inches to 3 feet
+- DIAGNOSTIC: "frog-eye" pattern - dead ring with green center (survivor grass)
+- Tan/straw colored dead grass, may have reddish-bronze tinge
+- Patches often coalesce into irregular shapes
+- Roots, crowns, and stolons dark brown to black, rotted
+- Disease develops on ROOTS in spring but symptoms appear in SUMMER heat stress
+- Conditions: hot humid summer (85°F+), compacted soil, acidic pH, poor drainage
+- Most common on: Kentucky bluegrass, fine fescues, annual bluegrass
+- Often confused with: necrotic ring spot (cooler temps), brown patch (surface symptoms)
+
+NECROTIC RING SPOT (Ophiosphaerella korrae):
+- Similar to summer patch but occurs in COOLER conditions (65-80°F)
+- Circular patches with frog-eye pattern
+- Roots and crowns blackened, dark runner hyphae on roots
+- Most common on: Kentucky bluegrass
+- Conditions: cool wet spring/fall, compacted soil
+
+PINK SNOW MOLD (Microdochium nivale):
+- Circular patches 1-8 inches, may coalesce
+- White to pink mycelium at patch margins
+- Bleached tan grass, pink tinge when active
+- Does NOT require snow cover (unlike gray snow mold)
+- Conditions: cool (32-60°F), wet, late fall through spring
+- Most common on: all cool-season grasses
+
+GRAY SNOW MOLD (Typhula spp.):
+- Circular gray to straw-colored patches, 6-24 inches
+- Matted, crusty grass with gray-white mycelium
+- DIAGNOSTIC: small tan/brown sclerotia (hard fungal bodies) on leaves
+- Requires extended snow cover (60+ days)
+- Conditions: snow on unfrozen ground
+- Most common on: all cool-season grasses in northern climates
 
 COMMON DISEASE MISIDENTIFICATION WARNINGS:
 - Dormant warm-season grass in winter = NORMAL, NOT disease
