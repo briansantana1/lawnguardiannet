@@ -105,13 +105,22 @@ DISTINCTIVE FEATURES:
 
 COMMON WEED IDENTIFICATION KEYS:
 - Crabgrass: wide leaf blades, spreading growth, finger-like seed heads, hairy
-- Nutsedge: triangular stem ("sedges have edges"), 3-ranked leaves, glossy
-- Dandelion: basal rosette, deeply lobed leaves, milky sap, yellow flowers
-- Clover: 3-leaflet compound leaves, white/pink flower heads
-- Dollarweed: round coin-shaped leaves, scalloped edges
-- Chickweed: opposite leaves, small white star-shaped flowers
-- Henbit/Deadnettle: square stems, opposite leaves, purple flowers
-- Spurge: opposite leaves, milky sap, prostrate growth
+- Nutsedge: triangular stem ("sedges have edges"), 3-ranked leaves, glossy yellow-green
+- Dandelion: basal rosette, deeply lobed leaves pointing backward, milky sap, yellow flowers, puffball seedhead
+- Clover: 3-leaflet compound leaves, white/pink flower heads, creeping stems
+- Dollarweed: round coin-shaped leaves, scalloped edges, long petiole attached to center of leaf
+- Chickweed: opposite leaves, small white star-shaped 5-petal flowers (petals deeply notched), succulent stems
+- Henbit: square stems, opposite rounded leaves with scalloped edges, sessile upper leaves clasping stem, tubular pink-purple flowers in whorls, hairy
+- Purple Deadnettle: square stems, triangular/heart-shaped leaves with purple-red tint on upper leaves, purple hooded flowers, crowded at top
+- Spurge: opposite leaves, milky sap when broken, prostrate/mat-forming growth, reddish stems
+- Wild Violet: heart-shaped leaves with scalloped edges, basal rosette pattern, purple/blue/white 5-petal flowers with white throat, thick rhizomes (extremely difficult to control)
+- Broadleaf Plantain: large oval/egg-shaped leaves with prominent parallel veins, basal rosette flat to ground, tall rat-tail flower spikes, fibrous root system
+- Buckhorn Plantain: narrow lance-shaped ribbed leaves, basal rosette, bullet-shaped flower heads on long stalks, deeply grooved leaves
+- Ground Ivy (Creeping Charlie): round/kidney-shaped leaves with scalloped edges, square creeping stems, small funnel-shaped purple flowers, minty odor when crushed
+- Oxalis (Wood Sorrel): clover-like 3 heart-shaped leaflets, yellow 5-petal flowers, folds leaves at night, sour taste
+- Poa Annua (Annual Bluegrass): light green grass, boat-shaped leaf tips, white seedheads even when mowed short, shallow roots, clumping
+- Dallisgrass: coarse clumps, wide leaves, distinctive seed heads with black spots (ergot), grows faster than surrounding turf
+- Goosegrass: silvery-white flattened stems at base, radiating spoke-like growth pattern, zipper-like seedheads, tolerates compacted soil
 
 ===== SYSTEMATIC DISEASE IDENTIFICATION PROTOCOL =====
 
