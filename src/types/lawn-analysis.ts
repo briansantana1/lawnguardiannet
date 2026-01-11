@@ -2,6 +2,7 @@ export interface IdentifiedIssue {
   type: 'disease' | 'insect' | 'weed' | 'nutrient_deficiency' | 'environmental';
   name: string;
   confidence: 'high' | 'medium' | 'low';
+  confidence_score?: number; // 0-100 percentage
   description: string;
   symptoms: string[];
   severity: 'mild' | 'moderate' | 'severe';

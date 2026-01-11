@@ -573,6 +573,7 @@ Your responses must be in valid JSON format with the following structure:
         "type": "disease" | "insect" | "weed" | "nutrient_deficiency" | "environmental",
         "name": "specific name of the issue",
         "confidence": "high" | "medium" | "low",
+        "confidence_score": 85,  // numeric percentage 0-100 representing your certainty
         "visual_evidence": "specific features observed: e.g., 'observed triangular stem cross-section with 3-ranked leaf arrangement confirming yellow nutsedge'",
         "description": "detailed description of the issue",
         "symptoms": ["list of visible symptoms actually observed in this image"],
