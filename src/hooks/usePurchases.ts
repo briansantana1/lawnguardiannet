@@ -27,11 +27,11 @@ export function usePurchases() {
   const platform = Capacitor.getPlatform();
   const isNative = platform === 'ios' || platform === 'android';
 
-  // Get the monthly package
-  const monthlyPackage = useMemo(() => {
+  // Get the weekly package
+  const weeklyPackage = useMemo(() => {
     return offerings.find(pkg => 
-      pkg.identifier === '$rc_monthly' || 
-      pkg.product.identifier.includes('monthly')
+      pkg.identifier === '$rc_weekly' || 
+      pkg.product.identifier.includes('weekly')
     );
   }, [offerings]);
 
@@ -43,12 +43,12 @@ export function usePurchases() {
     );
   }, [offerings]);
 
-  // Purchase monthly subscription
-  const purchaseMonthly = async () => {
-    if (!monthlyPackage) {
-      return { success: false, error: 'Monthly package not available' };
+  // Purchase weekly subscription
+  const purchaseWeekly = async () => {
+    if (!weeklyPackage) {
+      return { success: false, error: 'Weekly package not available' };
     }
-    return purchase(monthlyPackage);
+    return purchase(weeklyPackage);
   };
 
   // Purchase annual subscription
@@ -96,7 +96,7 @@ export function usePurchases() {
     
     // Packages
     offerings,
-    monthlyPackage,
+    weeklyPackage,
     annualPackage,
     
     // Subscription info
@@ -105,7 +105,7 @@ export function usePurchases() {
     
     // Actions
     purchase,
-    purchaseMonthly,
+    purchaseWeekly,
     purchaseAnnual,
     restore,
     refresh,

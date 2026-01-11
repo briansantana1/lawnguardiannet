@@ -85,10 +85,10 @@ export function Purchase() {
     isNative,
     isPurchaseAvailable,
     offerings,
-    monthlyPackage,
+    weeklyPackage,
     annualPackage,
     error,
-    purchaseMonthly,
+    purchaseWeekly,
     purchaseAnnual,
     restore,
     refresh,
@@ -100,7 +100,7 @@ export function Purchase() {
   const platform = Capacitor.getPlatform();
 
   // Get the appropriate package based on selected plan
-  const selectedPackage = plan.type === 'weekly' ? monthlyPackage : annualPackage;
+  const selectedPackage = plan.type === 'weekly' ? weeklyPackage : annualPackage;
   
   // Get real price from RevenueCat if available
   const displayPrice = selectedPackage?.product?.priceString || plan.price;
@@ -120,7 +120,7 @@ export function Purchase() {
     
     try {
       const result = plan.type === 'weekly' 
-        ? await purchaseMonthly()  // purchaseMonthly will be updated to purchaseWeekly when RevenueCat is configured
+        ? await purchaseWeekly()
         : await purchaseAnnual();
 
       if (result.success) {

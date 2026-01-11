@@ -18,9 +18,9 @@ import { supabase } from '@/integrations/supabase/client';
 
 // Product identifiers
 export const PRODUCT_IDS = {
-  PRO_MONTHLY: {
-    ios: 'com.lawnguardian.pro.monthly',
-    android: 'pro_monthly',
+  PRO_WEEKLY: {
+    ios: 'com.lawnguardian.pro.weekly',
+    android: 'pro_weekly',
   },
   PRO_ANNUAL: {
     ios: 'com.lawnguardian.pro.annual',
