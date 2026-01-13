@@ -75,9 +75,31 @@ VITE_OPENAI_API_KEY=your_openai_key
 - Always commit and push after changes
 - Increment versionCode before each Google Play upload
 
+## CRITICAL RULES - MUST FOLLOW
+1. **NEVER change code, UI, or anything without explicit user confirmation and approval**
+2. **NEVER inject ideas, concepts, or suggestions without asking first**
+3. **Pages confirmed as working are SET IN STONE - do not alter them**
+4. **Always ask before making any changes**
+5. **Present options and wait for approval before implementing**
+
 ## DO NOT
 - Commit `android/local.properties` (contains keystore password)
 - Commit `.env` files with real API keys
 - Use BrowserRouter (breaks Capacitor)
 - Build Android from OneDrive folder (file locking)
 - Add debug components to production builds
+- Make ANY code changes without explicit approval
+- Alter confirmed/working pages## Page Status Tracking
+Pages marked as CONFIRMED are locked and must not be modified:
+- (Add confirmed pages here as they are approved)
+
+## Branch Organization
+Each page should have its own branch:
+- `page/index` - Home page
+- `page/auth` - Authentication
+- `page/purchase` - Purchase flow
+- `page/plans` - Subscription plans
+- `page/profile` - User profile
+- `page/saved-plans` - Saved treatment plans
+- `page/legal` - Legal pages
+- `page/admin` - Admin dashboard

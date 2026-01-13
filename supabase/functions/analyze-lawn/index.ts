@@ -133,16 +133,13 @@ async function assessHealthWithPlantId(imageBase64: string): Promise<PlantIdHeal
     // Clean up base64 data
     const base64Data = imageBase64.replace(/^data:image\/\w+;base64,/, '');
     
+    // Plant.id v3 API request format
     const requestBody = {
       images: [`data:image/jpeg;base64,${base64Data}`],
-      latitude: null,
-      longitude: null,
-      similar_images: false,
       health: 'all',
-      disease_details: ['description', 'treatment'],
     };
     
-    const response = await fetch('https://api.plant.id/v3/health_assessment', {
+    const response = await fetch('https://api.plant.id/v3/health_assessment?details=description,treatment', {
       method: 'POST',
       headers: {
         'Api-Key': PLANT_ID_API_KEY,
