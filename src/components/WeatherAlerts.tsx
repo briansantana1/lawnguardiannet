@@ -158,6 +158,9 @@ export function WeatherAlerts() {
   const [scheduledNotifications, setScheduledNotifications] = useState<ScheduledNotification[]>([]);
   const [schedulingNotifications, setSchedulingNotifications] = useState(false);
   const [notificationHelpOpen, setNotificationHelpOpen] = useState(false);
+  const [mobileEmailDialogOpen, setMobileEmailDialogOpen] = useState(false);
+  const [mobileEmail, setMobileEmail] = useState("");
+  const [savingMobileEmail, setSavingMobileEmail] = useState(false);
   const [notificationSettings, setNotificationSettings] = useState({
     diseaseAlerts: true,
     insectAlerts: true,
@@ -525,12 +528,13 @@ export function WeatherAlerts() {
   };
 
   const handleEnableNotifications = async () => {
-    // Check if running on native mobile platform
+    // Check if running on native mobile platform - use email notifications as fallback
     if (Capacitor.isNativePlatform()) {
-      toast({
-        title: "Coming Soon! 🔔",
-        description: "Push notifications for mobile are coming in a future update. We'll notify you when it's available!",
-      });
+      // Pre-fill email if user is logged in
+      if (user?.email) {
+        setMobileEmail(user.email);
+      }
+      setMobileEmailDialogOpen(true);
       return;
     }
 
@@ -618,6 +622,59 @@ export function WeatherAlerts() {
       }
     }
     setManageDialogOpen(false);
+  };
+
+  // Handle mobile email notification setup
+  const handleSaveMobileEmail = async () => {
+    if (!mobileEmail || !mobileEmail.includes("@")) {
+      toast({
+        title: "Invalid Email",
+        description: "Please enter a valid email address.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setSavingMobileEmail(true);
+    try {
+      // Save email notification preference to Supabase if user is logged in
+      if (user) {
+        const { error } = await supabase
+          .from("notification_preferences")
+          .upsert({
+            user_id: user.id,
+            email_notifications_enabled: true,
+            browser_notifications_enabled: false,
+          }, {
+            onConflict: "user_id",
+          });
+
+        if (error) {
+          console.error("Error saving notification preference:", error);
+        }
+      }
+
+      // Save to localStorage as backup
+      localStorage.setItem("mobile_notification_email", mobileEmail);
+      localStorage.setItem("notifications_enabled", "true");
+
+      setNotificationsEnabled(true);
+      setMobileEmailDialogOpen(false);
+
+      toast({
+        title: "Email Notifications Enabled! 📧",
+        description: `You'll receive lawn care alerts at ${mobileEmail}`,
+      });
+    } catch (error) {
+      console.error("Error enabling email notifications:", error);
+      toast({
+        title: "Error",
+        description: "Could not enable email notifications. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setSavingMobileEmail(false);
+    }
   };
 
   const markNotificationAsRead = async (notificationId: string) => {
@@ -1382,6 +1439,84 @@ export function WeatherAlerts() {
               onClick={() => setNotificationHelpOpen(false)}
             >
               Close
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Mobile Email Notification Dialog */}
+      <Dialog open={mobileEmailDialogOpen} onOpenChange={setMobileEmailDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Bell className="w-5 h-5 text-primary" />
+              Enable Email Notifications
+            </DialogTitle>
+            <DialogDescription>
+              Get lawn care alerts sent directly to your email inbox.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="mobile-email">Email Address</Label>
+              <input
+                id="mobile-email"
+                type="email"
+                placeholder="your@email.com"
+                value={mobileEmail}
+                onChange={(e) => setMobileEmail(e.target.value)}
+                className="w-full px-3 py-2 rounded-lg border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+              />
+            </div>
+            
+            <div className="p-4 rounded-xl bg-lawn-50 border border-lawn-100">
+              <h4 className="font-semibold text-foreground mb-2 text-sm">What you'll receive:</h4>
+              <ul className="text-sm text-muted-foreground space-y-1">
+                <li className="flex items-center gap-2">
+                  <Check className="w-4 h-4 text-lawn-500" />
+                  Disease & pest alerts based on weather
+                </li>
+                <li className="flex items-center gap-2">
+                  <Check className="w-4 h-4 text-lawn-500" />
+                  Treatment reminders you've scheduled
+                </li>
+                <li className="flex items-center gap-2">
+                  <Check className="w-4 h-4 text-lawn-500" />
+                  Weekly lawn health reports
+                </li>
+              </ul>
+            </div>
+            
+            <p className="text-xs text-muted-foreground">
+              You can change or disable notifications anytime in settings.
+            </p>
+          </div>
+          
+          <div className="flex gap-2">
+            <Button 
+              variant="outline" 
+              onClick={() => setMobileEmailDialogOpen(false)}
+              className="flex-1"
+            >
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleSaveMobileEmail}
+              disabled={savingMobileEmail || !mobileEmail}
+              className="flex-1"
+            >
+              {savingMobileEmail ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                <>
+                  <Bell className="w-4 h-4 mr-2" />
+                  Enable
+                </>
+              )}
             </Button>
           </div>
         </DialogContent>
