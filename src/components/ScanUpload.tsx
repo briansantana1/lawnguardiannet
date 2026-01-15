@@ -183,22 +183,20 @@ export function ScanUpload() {
     }
   };
 
-  const handleSavePlan = async () => {
+  const handleSavePlan = async (): Promise<boolean> => {
     // Check auth status first
     const { data: sessionData } = await supabase.auth.getSession();
     const session = sessionData?.session;
     
     if (!session) {
       toast.error('Not logged in. Please sign in first.', { duration: 5000 });
-      return;
+      return false;
     }
 
     if (!analysisResult) {
       toast.error('No analysis to save.');
-      return;
+      return false;
     }
-
-    toast.info('Saving treatment plan...', { duration: 3000 });
 
     try {
       let imageUrl: string | null = null;
@@ -252,12 +250,13 @@ export function ScanUpload() {
 
       if (error) {
         toast.error(`Save failed: ${error.message}`, { duration: 8000 });
-        return;
+        return false;
       }
 
-      toast.success('Treatment plan saved!', { duration: 3000 });
+      return true;
     } catch (error: any) {
       toast.error(`Error: ${error.message}`, { duration: 8000 });
+      return false;
     }
   };
 

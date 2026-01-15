@@ -5,6 +5,7 @@ import {
   Droplets, 
   Sun,
   Save,
+  Check,
   Camera,
   ChevronDown,
   ChevronUp,
@@ -27,7 +28,7 @@ import { toast } from "sonner";
 interface AnalysisResultsProps {
   result: LawnAnalysisResult;
   imageUrl: string | null;
-  onSave: () => void;
+  onSave: () => Promise<boolean>;
   onNewScan: () => void;
   isLoggedIn: boolean;
 }
@@ -244,6 +245,20 @@ const ChemicalTreatmentCard = ({ treatment }: { treatment: ChemicalTreatment }) 
 
 export function AnalysisResults({ result, imageUrl, onSave, onNewScan, isLoggedIn }: AnalysisResultsProps) {
   const topRef = useRef<HTMLDivElement | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [hasSaved, setHasSaved] = useState(false);
+
+  const handleSave = async () => {
+    setIsSaving(true);
+    try {
+      const success = await onSave();
+      if (success) {
+        setHasSaved(true);
+      }
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   // Force-scroll the user to the top of the results view (works even if a scroll container is used)
   useEffect(() => {
@@ -281,9 +296,28 @@ export function AnalysisResults({ result, imageUrl, onSave, onNewScan, isLoggedI
             </h2>
             <div className="flex gap-3">
               {isLoggedIn ? (
-                <Button variant="outline" onClick={onSave} className="border-lawn-500 text-lawn-600 hover:bg-lawn-50">
-                  <Save className="w-4 h-4" />
-                  Save Treatment Plan
+                <Button 
+                  variant="outline" 
+                  onClick={hasSaved ? undefined : handleSave}
+                  disabled={isSaving}
+                  className={`min-w-[180px] ${hasSaved ? 'border-green-500 bg-green-100 text-green-700' : 'border-lawn-500 text-lawn-600 hover:bg-lawn-50'}`}
+                >
+                  {isSaving ? (
+                    <>
+                      <span className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin mr-2" />
+                      Saving...
+                    </>
+                  ) : hasSaved ? (
+                    <>
+                      <Check className="w-4 h-4 mr-2" />
+                      Saved
+                    </>
+                  ) : (
+                    <>
+                      <Save className="w-4 h-4 mr-2" />
+                      Save Treatment Plan
+                    </>
+                  )}
                 </Button>
               ) : (
                 <Link to="/auth">
