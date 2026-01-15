@@ -564,7 +564,7 @@ export function ScanUpload() {
                         disabled={isAnalyzing}
                       >
                         <Sparkles className="w-5 h-5" />
-                        Re-analyze
+                        {analysisResult ? "Re-analyze" : "Analyze"}
                       </Button>
                     </div>
                   )}
