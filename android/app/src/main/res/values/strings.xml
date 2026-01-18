@@ -4,4 +4,8 @@
     <string name="title_activity_main">Lawn Guardian™</string>
     <string name="package_name">com.lawnguardian.app</string>
     <string name="custom_url_scheme">com.lawnguardian.app</string>
+    
+    <!-- Google Sign-In: This must be the WEB client ID from Google Cloud Console -->
+    <!-- NOT the Android client ID - that comes from google-services.json -->
+    <string name="server_client_id">85020817846-0ocvhi45i28uh2u251lt1ictivphqaj7.apps.googleusercontent.com</string>
 </resources>

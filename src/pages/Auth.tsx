@@ -11,6 +11,8 @@ import { Leaf, Mail, Lock, User, Apple, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Capacitor } from '@capacitor/core';
 import { Browser } from '@capacitor/browser';
+import { Preferences } from '@capacitor/preferences';
+import { GoogleAuth } from '@codetrix-studio/capacitor-google-auth';
 
 /**
  * Auth Page
@@ -199,41 +201,56 @@ const Auth = () => {
     setSocialLoading(provider);
     
     try {
-      const isNative = Capacitor.isNativePlatform();
+      // Use browser-based OAuth for all providers (more reliable)
+      await handleBrowserOAuth(provider);
       
-      // For native apps, redirect back to the app via deep link
-      // For web, use the current origin
-      const redirectUrl = isNative 
-        ? 'lawnguardian://callback' 
-        : `${window.location.origin}/auth`;
-      
-      const { data, error } = await supabase.auth.signInWithOAuth({
-        provider,
-        options: {
-          redirectTo: redirectUrl,
-          skipBrowserRedirect: isNative,
-          queryParams: provider === 'apple' ? {
-            scope: 'email name',
-          } : undefined,
-        },
-      });
-      
-      if (error) throw error;
-      
-      // On native, open the OAuth URL in the system browser
-      if (isNative && data?.url) {
-        await Browser.open({ 
-          url: data.url,
-          windowName: '_self',
-          presentationStyle: 'popover'
-        });
-        
-        toast.info('Complete sign-in in browser, then return to app.', { duration: 5000 });
-      }
     } catch (error: any) {
       console.error(`${provider} sign-in error:`, error);
       toast.error(`Failed to sign in with ${provider === 'apple' ? 'Apple' : 'Google'}.`);
       setSocialLoading(null);
+    }
+  };
+
+  // Browser-based OAuth for web and Apple Sign-In
+  const handleBrowserOAuth = async (provider: 'apple' | 'google') => {
+    const isNative = Capacitor.isNativePlatform();
+    
+    // For native apps, redirect back to the app via deep link
+    // For web, use the current origin
+    const redirectUrl = isNative 
+      ? 'lawnguardian://callback' 
+      : `${window.location.origin}/auth`;
+    
+    const { data, error } = await supabase.auth.signInWithOAuth({
+      provider,
+      options: {
+        redirectTo: redirectUrl,
+        skipBrowserRedirect: isNative,
+        // Use implicit flow for native - returns tokens directly, no code exchange needed
+        ...(isNative && { flowType: 'implicit' }),
+        queryParams: provider === 'apple' ? {
+          scope: 'email name',
+        } : {
+          // For Google, request offline access
+          access_type: 'offline',
+          prompt: 'consent',
+        },
+      },
+    });
+    
+    if (error) throw error;
+    
+    // On native, open the OAuth URL in the system browser
+    if (isNative && data?.url) {
+      console.log('Opening OAuth URL:', data.url);
+      
+      await Browser.open({ 
+        url: data.url,
+        windowName: '_self',
+        presentationStyle: 'popover'
+      });
+      
+      toast.info('Complete sign-in in browser, then return to app.', { duration: 5000 });
     }
   };
 

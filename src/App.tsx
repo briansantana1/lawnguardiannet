@@ -7,6 +7,8 @@ import { HashRouter, Routes, Route } from "react-router-dom";
 import { PurchaseProvider } from "@/contexts/PurchaseContext";
 import { Capacitor } from "@capacitor/core";
 import { App as CapApp } from "@capacitor/app";
+import { Browser } from "@capacitor/browser";
+import { Preferences } from "@capacitor/preferences";
 import { supabase } from "@/integrations/supabase/client";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
@@ -34,32 +36,140 @@ function DeepLinkHandler() {
   useEffect(() => {
     if (!Capacitor.isNativePlatform()) return;
 
-    const handleDeepLink = async (event: { url: string }) => {
-      console.log('Deep link received:', event.url);
+    const handleOAuthUrl = async (url: string) => {
+      console.log('Processing OAuth URL:', url);
+      
+      // Close the browser window
+      try {
+        await Browser.close();
+      } catch (e) {
+        // Browser might already be closed
+      }
       
       // Handle OAuth callback
-      if (event.url.includes('callback') || event.url.includes('access_token') || event.url.includes('code=')) {
+      if (url.includes('callback') || url.includes('access_token') || url.includes('code=') || url.includes('error=')) {
         try {
-          // Extract the hash/query parameters
-          const url = new URL(event.url);
-          const hashParams = new URLSearchParams(url.hash.substring(1));
-          const queryParams = new URLSearchParams(url.search);
+          // Parse the URL - handle custom scheme
+          let hashString = '';
+          let searchString = '';
+          
+          // Extract hash and query parts manually for custom schemes
+          const hashIndex = url.indexOf('#');
+          const queryIndex = url.indexOf('?');
+          
+          if (hashIndex !== -1) {
+            hashString = url.substring(hashIndex + 1);
+          }
+          if (queryIndex !== -1) {
+            const endIndex = hashIndex !== -1 && hashIndex > queryIndex ? hashIndex : url.length;
+            searchString = url.substring(queryIndex + 1, endIndex);
+          }
+          
+          const hashParams = new URLSearchParams(hashString);
+          const queryParams = new URLSearchParams(searchString);
+          
+          // Check for errors first
+          const error = hashParams.get('error') || queryParams.get('error');
+          const errorDescription = hashParams.get('error_description') || queryParams.get('error_description');
+          if (error) {
+            console.error('OAuth error:', error, errorDescription);
+            return;
+          }
           
           const accessToken = hashParams.get('access_token') || queryParams.get('access_token');
           const refreshToken = hashParams.get('refresh_token') || queryParams.get('refresh_token');
           const code = queryParams.get('code');
           
+          console.log('OAuth params - accessToken:', !!accessToken, 'refreshToken:', !!refreshToken, 'code:', !!code);
+          console.log('Full URL for debugging:', url);
+          
           if (accessToken && refreshToken) {
-            // Set session directly with tokens
-            const { error } = await supabase.auth.setSession({
+            // Set session directly with tokens (implicit flow)
+            console.log('Setting session with tokens...');
+            const { data, error } = await supabase.auth.setSession({
               access_token: accessToken,
               refresh_token: refreshToken,
             });
-            if (error) console.error('Error setting session:', error);
+            if (error) {
+              console.error('Error setting session:', error);
+            } else {
+              console.log('Session set successfully:', !!data.session);
+            }
           } else if (code) {
-            // Exchange code for session
-            const { error } = await supabase.auth.exchangeCodeForSession(code);
-            if (error) console.error('Error exchanging code:', error);
+            // Exchange code for session (PKCE flow)
+            console.log('Exchanging code for session...');
+            
+            // First, restore any backed up keys from native Preferences storage
+            // This is critical - the verifier might have been lost when app was backgrounded
+            try {
+              const keysToRestore = [
+                'sb-zxkugpfmwieexgldnlyl-auth-token-code-verifier',
+                'supabase.auth.token-code-verifier'
+              ];
+              
+              for (const originalKey of keysToRestore) {
+                const backupKey = `backup_${originalKey}`;
+                const { value } = await Preferences.get({ key: backupKey });
+                if (value && !localStorage.getItem(originalKey)) {
+                  localStorage.setItem(originalKey, value);
+                  console.log('Restored from native storage:', originalKey);
+                }
+              }
+              
+              // Also restore any other sb- keys
+              // We can't enumerate Preferences, so restore what we know might exist
+              const allPossibleKeys = Object.keys(localStorage).filter(k => k.startsWith('backup_'));
+              for (const backupKey of allPossibleKeys) {
+                const originalKey = backupKey.replace('backup_', '');
+                const value = localStorage.getItem(backupKey);
+                if (value && !localStorage.getItem(originalKey)) {
+                  localStorage.setItem(originalKey, value);
+                  console.log('Restored verifier from localStorage backup:', originalKey);
+                }
+              }
+            } catch (e) {
+              console.log('Error restoring from Preferences:', e);
+            }
+            
+            let { data, error } = await supabase.auth.exchangeCodeForSession(code);
+            
+            if (error) {
+              console.error('Error exchanging code:', error.message);
+              
+              // Try one more time after a brief delay
+              await new Promise(resolve => setTimeout(resolve, 500));
+              const retry = await supabase.auth.exchangeCodeForSession(code);
+              if (retry.error) {
+                console.error('Retry also failed:', retry.error.message);
+                // Check if session was set anyway
+                const { data: sessionData } = await supabase.auth.getSession();
+                if (sessionData?.session) {
+                  console.log('Found existing session despite exchange error');
+                }
+              } else {
+                console.log('Retry succeeded:', !!retry.data.session);
+              }
+            } else {
+              console.log('Code exchanged successfully:', !!data.session);
+            }
+            
+            // Clean up backup keys from native storage
+            try {
+              const keysToClean = [
+                'backup_sb-zxkugpfmwieexgldnlyl-auth-token-code-verifier',
+                'backup_supabase.auth.token-code-verifier'
+              ];
+              for (const key of keysToClean) {
+                await Preferences.remove({ key });
+              }
+            } catch (e) {
+              // Ignore cleanup errors
+            }
+          } else {
+            console.log('No tokens or code found in callback URL');
+            // Check if session was already set by Supabase
+            const { data: sessionData } = await supabase.auth.getSession();
+            console.log('Checking for existing session:', !!sessionData?.session);
           }
         } catch (error) {
           console.error('Deep link handling error:', error);
@@ -67,11 +177,45 @@ function DeepLinkHandler() {
       }
     };
 
-    // Listen for app URL open events
+    const handleDeepLink = async (event: { url: string }) => {
+      console.log('Deep link received via appUrlOpen:', event.url);
+      await handleOAuthUrl(event.url);
+    };
+
+    // Listen for app URL open events (when app is in background)
     CapApp.addListener('appUrlOpen', handleDeepLink);
+    
+    // Also check for launch URL (when app is cold started via deep link)
+    CapApp.getLaunchUrl().then((result) => {
+      if (result?.url) {
+        console.log('App launched with URL:', result.url);
+        handleOAuthUrl(result.url);
+      }
+    });
+
+    // Listen for app resume to check session
+    CapApp.addListener('resume', async () => {
+      console.log('App resumed, checking session...');
+      // Small delay to allow any pending auth to complete
+      setTimeout(async () => {
+        const { data: { session } } = await supabase.auth.getSession();
+        console.log('Session check on resume:', !!session);
+      }, 500);
+    });
+
+    // Listen for browser finished event
+    Browser.addListener('browserFinished', async () => {
+      console.log('Browser finished, checking session...');
+      // Small delay to allow the deep link to be processed first
+      setTimeout(async () => {
+        const { data: { session } } = await supabase.auth.getSession();
+        console.log('Session check after browser closed:', !!session);
+      }, 1000);
+    });
 
     return () => {
       CapApp.removeAllListeners();
+      Browser.removeAllListeners();
     };
   }, []);
 

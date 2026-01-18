@@ -75,6 +75,15 @@ const config: CapacitorConfig = {
   
   // Plugins configuration
   plugins: {
+    // Google Auth - Native Sign-In
+    // The clientId must be the WEB client ID from Google Cloud Console
+    // (not the Android client ID - that's configured via google-services.json)
+    GoogleAuth: {
+      scopes: ['profile', 'email'],
+      serverClientId: '85020817846-0ocvhi45i28uh2u251lt1ictivphqaj7.apps.googleusercontent.com',
+      forceCodeForRefreshToken: true,
+    },
+    
     // Push Notifications
     PushNotifications: {
       presentationOptions: ['badge', 'sound', 'alert'],
